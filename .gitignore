@@ -1,0 +1,8 @@
+# Enviroments Out - Set your own enviroment
+openai-env
+
+# Cache no needed
+__pycache__
+
+# DANGEROUS never commit .env
+.env
