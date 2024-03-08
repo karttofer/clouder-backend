@@ -20,6 +20,7 @@ REMEMBER
 
 from openai import OpenAI
 from dotenv import load_dotenv, find_dotenv
+import requests
 import os
 
 dotenv_patch = find_dotenv()
@@ -36,13 +37,25 @@ my_assistant = client.beta.assistants.retrieve(my_assistant_id)
 """
 TODO: We need to create a table for this one, since when the a conversation is created it need to be stored
 """
+
+
 def create_bot_thread():
     user_new_thread = client.beta.threads.create()
 
 
-def create_user_message():
-    print("")
+def delete_bot_thread(thread_id):
+    try:
+        client.beta.threads.delete(thread_id)
+    except NameError:
+        return NameError
+
+
+def create_user_message(thread_id):
+
+    client.beta.threads.delete(thread_id)
 
 
 def get_bot_response():
-    user_previous_thread_created  = client.beta.threads.retrieve("thread_abc123")
+    user_previous_thread_created = client.beta.threads.retrieve("thread_abc123")
+
+    return user_previous_thread_created
