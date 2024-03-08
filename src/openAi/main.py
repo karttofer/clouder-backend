@@ -20,7 +20,6 @@ REMEMBER
 
 from openai import OpenAI
 from dotenv import load_dotenv, find_dotenv
-import requests
 import os
 
 dotenv_patch = find_dotenv()
