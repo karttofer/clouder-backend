@@ -15,7 +15,7 @@ SENDER_API_KEY=<email_sender_api>
 ```
 
 ### Run Commands
-```cmd
+```shell
 pip install -r requirements. txt 
 
 prisma generate
