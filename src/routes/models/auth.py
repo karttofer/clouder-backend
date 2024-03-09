@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 
 class SendMagicLink(BaseModel):
-    nickname: str
     email: str
 
 class Register(BaseModel):
@@ -16,6 +15,5 @@ class ResetPasword(BaseModel):
 
 
 class SendMagicLink(BaseModel):
-    user_id: str
     email: str
 
