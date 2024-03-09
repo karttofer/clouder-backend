@@ -15,11 +15,18 @@ model User {
   password String
   email    String    @unique
   Threads  Threads[]
+  UserPin  SecretPins[]
+}
+
+model SecretPins {
+  user    User   @relation(fields: [user_id], references: [id])
+  user_id String @unique
+  pin Int
 }
 
 model Threads {
-  thread_id String @unique
-  user      User   @relation(fields: [user_id], references: [id])
-  user_id   String
+  thread_id   String @unique
+  user        User   @relation(fields: [user_id], references: [id])
+  user_id     String
   thread_name String
 }

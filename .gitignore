@@ -1,8 +1,8 @@
-# Enviroments Out - Set your own enviroment
-openai-env
+# env
+venv
 
-# Cache no needed
+# cache
 __pycache__
 
-# DANGEROUS never commit .env
+# migrations
 .env
