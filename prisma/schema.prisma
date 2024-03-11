@@ -10,21 +10,31 @@ datasource db {
 }
 
 model User {
-  id       String    @id @default(uuid())
-  nickname String    @unique
-  password String
-  email    String    @unique
-  Threads  Threads[]
-  UserPin  SecretPins[]
+  id          String       @id @default(uuid())
+  nickname    String       @unique
+  password    String
+  email       String       @unique
+  Threads     UserThreads[]
+  UserPin     SecretPins[]
+  LoggedUsers LoggedUsers?
 }
 
+// Table to know users currently on
+model LoggedUsers {
+  user     User    @relation(fields: [user_id], references: [id])
+  user_id  String  @unique
+  isLogged Boolean
+}
+
+// All the pins in relation to change password or something else related to auth
 model SecretPins {
   user    User   @relation(fields: [user_id], references: [id])
   user_id String @unique
-  pin Int
+  pin     Int
 }
 
-model Threads {
+// Table to know users threads with the bot
+model UserThreads {
   thread_id   String @unique
   user        User   @relation(fields: [user_id], references: [id])
   user_id     String

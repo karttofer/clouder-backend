@@ -1,19 +1,25 @@
 from pydantic import BaseModel
 
-class SendMagicLink(BaseModel):
+
+class LoginModel(BaseModel):
+    email: str
+    password: bytes
+
+
+class SendMagicLinkModel(BaseModel):
     email: str
 
-class Register(BaseModel):
+
+class RegisterModel(BaseModel):
     nickname: str
     password: str
     email: str
 
 
-class ResetPasword(BaseModel):
+class ResetPaswordModel(BaseModel):
     user_id: str
     new_password: str
 
 
-class SendMagicLink(BaseModel):
+class SendMagicLinkModel(BaseModel):
     email: str
-
