@@ -10,10 +10,14 @@ from src.routes.helpers.emailSender import send_email
 from src.routes.helpers.methods import generate_4_digit_pin
 
 # Models
-from src.routes.models.auth import Register, ResetPasword, SendMagicLink
+from src.routes.models.auth import (
+    RegisterModel,
+    ResetPaswordModel,
+    SendMagicLinkModel,
+    LoginModel,
+)
 
 authRouter = APIRouter()
-
 
 def salt_password(password):
     password = password
@@ -23,18 +27,36 @@ def salt_password(password):
 
     return base64.b64encode(hash_password_bytes).decode("utf-8")
 
+# TODO: Is this really secure? We need to test this to break, this can affect registation and the way we are making the passwords
+@authRouter.post("/auth/login", tags=["auth"])
+async def read_users(loginBody: LoginModel):
+    db = Prisma()
+    await db.connect()
 
-@authRouter.post("/auth", tags=["auth"])
-def read_users():
-    return [{"message": ""}]
+    user = await db.user.find_unique(where={"email": loginBody.email})
+    decoded_bytes = base64.b64decode(user.password)
 
-# TODO: We need to check first if the user does no exist in the database
+    if user and bcrypt.checkpw(loginBody.password, decoded_bytes):
+        await db.disconnect()
+        return [{"message": "User logged successfully", "status": 200}]
+    
+    else:
+        await db.disconnect()
+        return [{"message": "Password or username does not exist", "code": 404}]
+
 @authRouter.post("/auth/register", tags=["auth"])
-async def read_user(regisBody: Register):
+async def read_user(regisBody: RegisterModel):
+    db = Prisma()
+    await db.connect()
+    user_exist = await db.user.find_unique(
+        where={"nickname": regisBody.nickname, "email": regisBody.email}
+    )
+
+    if user_exist and user_exist.nickname:
+        return {"message": "User already exist", "status": 409}
+
     try:
         regisBody.password = salt_password(regisBody.password)
-        db = Prisma()
-        await db.connect()
 
         await db.user.create(data=regisBody.model_dump(exclude_none=True))
 
@@ -47,7 +69,7 @@ async def read_user(regisBody: Register):
 
 
 @authRouter.post("/auth/magic-link", tags=["auth"])
-async def read_user(magicLinkRestBody: SendMagicLink):
+async def read_user(magicLinkRestBody: ResetPaswordModel):
     db = Prisma()
     await db.connect()
     user = await db.user.find_unique(where={"email": magicLinkRestBody.email})
@@ -67,9 +89,10 @@ async def read_user(magicLinkRestBody: SendMagicLink):
     await db.disconnect()
     return {"message": "User does no exist", "code": 404}
 
+
 # Frontend should check password validation
 @authRouter.post("/auth/reset-password", tags=["auth"])
-async def read_user(resetPassBody: ResetPasword):
+async def read_user(resetPassBody: SendMagicLinkModel):
     db = Prisma()
     await db.connect()
 
