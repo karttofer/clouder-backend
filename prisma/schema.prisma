@@ -10,10 +10,10 @@ datasource db {
 }
 
 model User {
-  id          String       @id @default(uuid())
-  nickname    String       @unique
+  id          String        @id @default(uuid())
+  nickname    String        @unique
   password    String
-  email       String       @unique
+  email       String        @unique
   Threads     UserThreads[]
   UserPin     SecretPins[]
   LoggedUsers LoggedUsers?
@@ -35,8 +35,9 @@ model SecretPins {
 
 // Table to know users threads with the bot
 model UserThreads {
-  thread_id   String @unique
-  user        User   @relation(fields: [user_id], references: [id])
+  thread_id   String  @unique
+  user        User    @relation(fields: [user_id], references: [id])
   user_id     String
   thread_name String
+  isArchived  Boolean
 }
