@@ -35,9 +35,11 @@ model SecretPins {
 
 // Table to know users threads with the bot
 model UserThreads {
-  thread_id   String  @unique
-  user        User    @relation(fields: [user_id], references: [id])
+  thread_id   String   @unique
+  message_id  String   @unique
+  user        User     @relation(fields: [user_id], references: [id])
   user_id     String
   thread_name String
   isArchived  Boolean
+  created_at  Int
 }
