@@ -23,9 +23,7 @@ from src.routes.models.bot import (
     DeleteThreadModel,
 )
 
-
 botRouter = APIRouter()
-
 
 @botRouter.post("/bot/create-conversation", tags=["bot"])
 async def create_conversation(createConversationBody: CreateThreadModelMessagesModel):
