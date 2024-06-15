@@ -11,7 +11,7 @@ DATABASE_URL=postgresql://<name>:<password>@<host>:<port>/<database_name>
 # Email sender
 ```.env
 SENDER_EMAIL=<email_sender>
-SENDER_API_KEY=<email_sender_api>
+SENDER_API_KEY=<email_sender_api> - SMTP key value
 ```
 
 ### Run Commands

@@ -68,12 +68,18 @@ async def read_user(regisBody: RegisterModel):
     return {"message": "User created", "status": 200}
 
 
+# TODO: Now, we should destroy the already exist pin and create another one
+# TODO: We need to wait almost 5 minutes before to create another one
 @authRouter.post("/auth/magic-link", tags=["auth"])
-async def read_user(magicLinkRestBody: ResetPaswordModel):
+async def read_user(magicLinkRestBody: SendMagicLinkModel):
     db = Prisma()
     await db.connect()
     user = await db.user.find_unique(where={"email": magicLinkRestBody.email})
+    
     if user != None:
+        exist_pin = await db.secretpins.find_unique(where={"user_id": user.id})
+        if exist_pin:
+            return {"message": "Pin already created", "code": 409}
         pin = generate_4_digit_pin()
         email_subject_body = reset_password_messages(pin)
         await db.secretpins.create(data={"user_id": user.id, "pin": pin})
@@ -92,7 +98,8 @@ async def read_user(magicLinkRestBody: ResetPaswordModel):
 
 # Frontend should check password validation
 @authRouter.post("/auth/reset-password", tags=["auth"])
-async def read_user(resetPassBody: SendMagicLinkModel):
+async def read_user(resetPassBody: ResetPaswordModel):
+    
     db = Prisma()
     await db.connect()
 
