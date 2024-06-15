@@ -23,7 +23,7 @@ prisma migrate dev
 
 uvicorn main:app --reload
 ```
-### FAQ
+# FAQ
 
 These are some questions and answers I asked myself, and then I answered them through extensive research.
 
