@@ -1,5 +1,6 @@
 # Deps
-from fastapi import APIRouter, HTTPException
+import uuid
+from fastapi import APIRouter, HTTPException, File, UploadFile
 from prisma import Prisma
 
 # Models
@@ -63,7 +64,6 @@ async def edit_user(editBody: EditModel):
 
     except Exception as error:
         raise HTTPException(status_code=500, detail=str(error))
-
     finally:
         await db.disconnect()
 
@@ -76,3 +76,25 @@ def read_user():
 @userRouter.post("/user/archived-conversations", tags=["user"])
 def read_user():
     return [{"message": "auth-magic-link"}]
+
+
+@userRouter.post("/user/upload/image", tags=["user"])
+async def read_user(file: UploadFile = File(...)):
+    
+    # Give unique name to the file
+    file.filename = f"{uuid.uuid4()}.png"
+    
+    # Read the content of the file    
+    fileContent = await file.read()
+    
+    # Save the file
+    with open(f"src/uploads/{file.filename}", "wb") as f:
+        f.write(fileContent)    
+    
+    return [{"message": {
+        "status": 200,
+        "data": {
+            "filename": file.filename,
+            "content_type": file.content_type
+        }
+    }}]

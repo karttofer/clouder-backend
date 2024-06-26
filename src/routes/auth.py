@@ -44,15 +44,25 @@ async def read_users(loginBody: LoginModel):
         await db.disconnect()
         return [{"message": "Password or username does not exist", "code": 404}]
 
+# TODO: Validate that all the requirements are met in relation to fields, not only nickname (Frontend Doing this)
+# FIXME: When user exist it throws Unique constraint failed on the fields: (`nickname`)
+# FIXME: A secret pin is created in SecretPins table, this isn't right. I think we should delete the conncetion between these tables
 @authRouter.post("/auth/register", tags=["auth"])
 async def read_user(regisBody: RegisterModel):
+    print(regisBody)
     db = Prisma()
     await db.connect()
-    user_exist = await db.user.find_unique(
-        where={"nickname": regisBody.nickname, "email": regisBody.email}
+    
+    nickname_exist = await db.user.find_unique(
+        where={"nickname": regisBody.nickname}
     )
-
-    if user_exist and user_exist.nickname:
+    
+    email_exist = await db.user.find_unique(
+        where={"email": regisBody.email}
+    )
+    
+    if nickname_exist or email_exist:
+        await db.disconnect()
         return {"message": "User already exist", "status": 409}
 
     try:
@@ -61,6 +71,7 @@ async def read_user(regisBody: RegisterModel):
         await db.user.create(data=regisBody.model_dump(exclude_none=True))
 
         await db.disconnect()
+        
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(error)

@@ -15,8 +15,8 @@ model User {
   password    String
   email       String        @unique
   Threads     UserThreads[]
-  UserPin     SecretPins[]
   LoggedUsers LoggedUsers?
+  UserImage   String?
 }
 
 // Table to know users currently on
@@ -28,8 +28,7 @@ model LoggedUsers {
 
 // All the pins in relation to change password or something else related to auth
 model SecretPins {
-  user    User   @relation(fields: [user_id], references: [id])
-  user_id String @unique
+  user_id String @id
   pin     Int
 }
 
