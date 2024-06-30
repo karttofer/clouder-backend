@@ -7,14 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Ajusta según sea necesario
+    allow_origins=["*"],  # Adjust this as necessary
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"],  # This should include 'response_description' if it's custom
 )
-
 
 app.include_router(welcome_router)
 app.include_router(authRouter)
