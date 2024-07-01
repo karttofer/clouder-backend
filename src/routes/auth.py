@@ -167,12 +167,9 @@ async def jwt(googleUser: RegisterGoogleUser):
 
     if user:
         await db.disconnect()
-        return {"message": "User exist", "status": 409, "user_exist": True, "user_completed_registration": user.user_completed_registration}
+        return {"message": "backend.user_exist", "messageType":"warning", "status": 409, "user_exist": True, "user_completed_registration": user.user_completed_registration}
             
     match googleUser.auth_method:
-        case "login":
-            await db.disconnect()
-            return {"message": "This user does no exist", "status": 404, "user_exist": False}
         case "register":
             await db.user.create(data={
             "nickname": googleUser.name, 
@@ -180,10 +177,10 @@ async def jwt(googleUser: RegisterGoogleUser):
             "user_image": googleUser.picture,
             })
             await db.disconnect()
-            return {"message": "User created", "status": 200, "user_created": True}
+            return {"message": "backend.user_created", "messageType":"success", "status": 200, "user_created": True}
         case _:
             await db.disconnect()
-            return {"message": "Invalid auth method", "status": 400}
+            return {"message": "backend.invalid_method", "messageType":"error","status": 400}
     
 # Possbiles features to implement
 @authRouter.post("/auth/reset-password", tags=["auth"])
