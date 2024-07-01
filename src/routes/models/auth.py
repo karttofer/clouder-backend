@@ -33,3 +33,10 @@ class JWTFUSerLogin(BaseModel):
 class SecretPINVerification(BaseModel):
     email: str
     user_pin: int
+
+class RegisterGoogleUser(BaseModel):
+    name: str
+    email: str
+    picture: str
+    email_verified: bool
+    auth_method: str

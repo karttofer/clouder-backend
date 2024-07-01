@@ -1,11 +1,11 @@
 # Deps
 import asyncio
 from typing import Annotated
-from fastapi import APIRouter, HTTPException, Header, Request, Response, status
+from fastapi import APIRouter, HTTPException, status
 from prisma import Prisma
 import bcrypt
 import base64
-from google.auth import jwt as g_jwt
+from google.auth import jwt
 
 # Helpers
 from src.routes.helpers.configs import reset_password_messages, confirm_email_message
@@ -18,9 +18,8 @@ from src.routes.models.auth import (
     ResetPaswordModel,
     SendMagicLinkModel,
     LoginModel,
-    JWTFUSerLogin,
     SecretPINVerification,
-    RegisterByJWT
+    RegisterGoogleUser
 )
 
 authRouter = APIRouter()
@@ -50,11 +49,6 @@ async def read_users(loginBody: LoginModel):
         await db.disconnect()
         return [{"message": "Password or username does not exist", "code": 404}]
 
-# TODO: Validate that all the requirements are met in relation to fields, not only nickname (Frontend Doing this)
-# FIXME: A secret pin is created in SecretPins table, this isn't right. I think we should delete the conncetion between these tables
-
-# TODO: (DONE) This one should return the user ID to save it in the frontend, then in we will save this in the localStore of Frontend to use it
-# later
 @authRouter.post("/auth/register", tags=["auth"])
 async def read_user(regisBody: RegisterModel):
     print(regisBody)
@@ -94,7 +88,6 @@ async def read_user(regisBody: RegisterModel):
         "user_email":final_user.email
     }}
 
-## Create Magic Links - PIN
 async def delete_pin_after_delay(user_id: int, delay: int = 600):
     await asyncio.sleep(delay)
     db = Prisma()
@@ -144,11 +137,6 @@ async def read_user(magicLinkRestBody: SendMagicLinkModel):
             "code": 200,
         }
 
-
-# As note, we are doing the validation of pin in the Frontend, right now we need to create
-# Alerts when the pin is already created and it is valid to not create another one until it expires or the user comsumes
-# There is an error with the stepper
-
 @authRouter.post("/auth/pin-verification", tags=["auth"])
 async def read_user(verificationPin: SecretPINVerification):
     
@@ -170,10 +158,36 @@ async def read_user(verificationPin: SecretPINVerification):
         await db.disconnect()
         return {"message": "PIN is invalid, please try again","is_valid_pin":False, "status": 404}
     
-# Frontend should check password validation
+@authRouter.post("/auth/google-auth", tags=["auth"])
+async def jwt(googleUser: RegisterGoogleUser):
+    db = Prisma()
+    await db.connect()
+    print(googleUser)
+    user = await db.user.find_unique(where={"email": googleUser.email})
+
+    if user:
+        await db.disconnect()
+        return {"message": "User exist", "status": 409, "user_exist": True, "user_completed_registration": user.user_completed_registration}
+            
+    match googleUser.auth_method:
+        case "login":
+            await db.disconnect()
+            return {"message": "This user does no exist", "status": 404, "user_exist": False}
+        case "register":
+            await db.user.create(data={
+            "nickname": googleUser.name, 
+            "email": googleUser.email, 
+            "user_image": googleUser.picture,
+            })
+            await db.disconnect()
+            return {"message": "User created", "status": 200, "user_created": True}
+        case _:
+            await db.disconnect()
+            return {"message": "Invalid auth method", "status": 400}
+    
+# Possbiles features to implement
 @authRouter.post("/auth/reset-password", tags=["auth"])
 async def read_user(resetPassBody: ResetPaswordModel):
-    
     db = Prisma()
     await db.connect()
 
@@ -185,49 +199,3 @@ async def read_user(resetPassBody: ResetPaswordModel):
 
     await db.disconnect()
     return [{"message": "auth-magic-link", "code": 200}]
-
-
-# JWT AUTHENTICATION - Route
-async def check_user_exist(jwt_user_token):
-    db = Prisma()
-    try:
-        await db.connect()
-
-        user_exist = await db.user.find_unique(where={"email": jwt_user_token["email"]})
-
-        if user_exist:
-            print('User exists')
-            return 'User already exists', 409
-        
-        google_user = {
-            "email": jwt_user_token["email"],
-            "nickname": jwt_user_token["given_name"],
-            "google_picture_src": jwt_user_token["picture"],
-            "password": ""
-        }
-
-        await db.user.create(data=google_user)
-        
-        print('User created')
-        return 'User created', 200
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return 'Internal Server Error', 500
-
-    finally:
-        await db.disconnect()
-# Here there is an problem, in Frontend for any reason we can't get the response description
-# This is an GET just for now while I find a better solutions for this one
-@authRouter.get("/auth/jwt-auth-registration", tags=["auth"], status_code=204)
-async def jwt(request: Request, response: Response):
-    try:
-        jwt_user_token = g_jwt.decode(request.headers.get('authorization'), verify=False)
-        response_description, status_code = await check_user_exist(jwt_user_token)
-        response.status_code = status_code
-        return {"message": response_description, "status": status_code, "payload":{
-            "user_email": jwt_user_token["email"],
-        }}
-    except Exception as e:
-        response.headers['response_description'] = str(e)
-        response.status_code = 500
