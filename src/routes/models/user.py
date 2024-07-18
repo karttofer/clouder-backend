@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class UserModel(BaseModel):
-    id: str
+    email: str
 
 
 class EditModel(BaseModel):

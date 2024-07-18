@@ -24,69 +24,42 @@ from src.routes.models.auth import (
 
 authRouter = APIRouter()
 
-def salt_password(password):
-    password = password
-    bytes_password = password.encode("utf-8")
-    salt = bcrypt.gensalt()
-    hash_password_bytes = bcrypt.hashpw(bytes_password, salt)
-
-    return base64.b64encode(hash_password_bytes).decode("utf-8")
-
-# TODO: Is this really secure? We need to test this to break, this can affect registation and the way we are making the passwords
 @authRouter.post("/auth/login", tags=["auth"])
 async def read_users(loginBody: LoginModel):
     db = Prisma()
     await db.connect()
 
     user = await db.user.find_unique(where={"email": loginBody.email})
-    decoded_bytes = base64.b64decode(user.password)
-
-    if user and bcrypt.checkpw(loginBody.password, decoded_bytes):
-        await db.disconnect()
-        return [{"message": "User logged successfully", "status": 200}]
     
-    else:
+    if user == None:
         await db.disconnect()
-        return [{"message": "Password or username does not exist", "code": 404}]
+        return {"message": "backend.user_does_not_exist","messageType": "error", "code": 404}
+    
+    if user.user_completed_registration == False:
+        await db.disconnect()
+        return {"message": "backend.user_registration_not_completed","messageType": "warning", "user_completed_registration": user.user_completed_registration,"user_email":user.email, "status": 400}
+    
+    if user and user.user_completed_registration:
+        db.disconnect()
+        return {"message": "backend.user_logged_successfully","messageType": "success", "user_completed_registration": user.user_completed_registration,"status": 200}
 
 @authRouter.post("/auth/register", tags=["auth"])
 async def read_user(regisBody: RegisterModel):
-    print(regisBody)
     db = Prisma()
     await db.connect()
     
-    nickname_exist = await db.user.find_unique(
-        where={"nickname": regisBody.nickname}
-    )
-    
-    email_exist = await db.user.find_unique(
-        where={"email": regisBody.email}
-    )
-    
-    final_user = None
+    nickname_exist = await db.user.find_unique(where={"nickname": regisBody.nickname})
+    email_exist = await db.user.find_unique(where={"email": regisBody.email})
     
     if nickname_exist or email_exist:
         await db.disconnect()
-        return {"message": "User already exist", "status": 409}
+        return {"message": "backend.user_exist", "messageType":"warning", "status": 409}
+    
+    await db.user.create(data={"nickname": regisBody.nickname, "email": regisBody.email})
+    
+    user_created = await db.user.find_unique(where={"email": regisBody.email})
 
-    try:
-        regisBody.password = salt_password(regisBody.password)
-
-        await db.user.create(data=regisBody.model_dump(exclude_none=True))
-        
-        final_user = await db.user.find_unique(where={"email": regisBody.email})
-
-        await db.disconnect()
-        
-    except Exception as error:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(error)
-        )
-    return {"message": "User created", "status": 200, "payload": {
-        "user_id": final_user.id,
-        "user_nickname": final_user.nickname,
-        "user_email":final_user.email
-    }}
+    return {"message": "backend.user_created", "messageType":"success", "status": 200,"user": { "email":user_created.email, "nickname":user_created.nickname, "user_id": user_created.id, "user_completed_registration": user_created.user_completed_registration },"user_created": True}
 
 async def delete_pin_after_delay(user_id: int, delay: int = 600):
     await asyncio.sleep(delay)
@@ -143,11 +116,16 @@ async def read_user(verificationPin: SecretPINVerification):
     db = Prisma()
     await db.connect()
     
-    if verificationPin.email is None or verificationPin.user_pin is None:
+    if verificationPin.email == None or verificationPin.user_pin == None:
         await db.disconnect()
         return {"message": "Email and pin are required", "status": 400}
 
     user_id_exist = await db.user.find_unique(where={"email": verificationPin.email})
+    
+    if user_id_exist == None:
+        await db.disconnect()
+        return {"message": "User does not exist", "status": 404}
+    
     pin_exist = await db.secretpins.find_unique(where={"user_id": user_id_exist.id, "pin": verificationPin.user_pin})
     
     if pin_exist:
@@ -159,7 +137,7 @@ async def read_user(verificationPin: SecretPINVerification):
         return {"message": "PIN is invalid, please try again","is_valid_pin":False, "status": 404}
     
 @authRouter.post("/auth/google-auth", tags=["auth"])
-async def jwt(googleUser: RegisterGoogleUser):
+async def googleAuth(googleUser: RegisterGoogleUser):
     db = Prisma()
     await db.connect()
     print(googleUser)
@@ -172,7 +150,7 @@ async def jwt(googleUser: RegisterGoogleUser):
     match googleUser.auth_method:
         case "register":
             await db.user.create(data={
-            "nickname": googleUser.name, 
+            "nickname": googleUser.nickname, 
             "email": googleUser.email, 
             "user_image": googleUser.picture,
             })
@@ -182,11 +160,6 @@ async def jwt(googleUser: RegisterGoogleUser):
             await db.disconnect()
             return {"message": "backend.invalid_method", "messageType":"error","status": 400}
     
-# Possbiles features to implement
-@authRouter.post("/auth/reset-password", tags=["auth"])
-async def read_user(resetPassBody: ResetPaswordModel):
-    db = Prisma()
-    await db.connect()
 
     new_password = salt_password(resetPassBody.new_password)
 

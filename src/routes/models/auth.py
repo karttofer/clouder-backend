@@ -3,8 +3,6 @@ from pydantic import BaseModel
 
 class LoginModel(BaseModel):
     email: str
-    password: bytes
-
 
 class SendMagicLinkModel(BaseModel):
     email: str
@@ -12,7 +10,6 @@ class SendMagicLinkModel(BaseModel):
 
 class RegisterModel(BaseModel):
     nickname: str
-    password: str
     email: str
 
 class RegisterByJWT(BaseModel):
@@ -35,8 +32,7 @@ class SecretPINVerification(BaseModel):
     user_pin: int
 
 class RegisterGoogleUser(BaseModel):
-    name: str
+    nickname: str
     email: str
     picture: str
-    email_verified: bool
     auth_method: str

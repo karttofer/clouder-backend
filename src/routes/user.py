@@ -7,26 +7,25 @@ from prisma import Prisma
 from src.routes.models.user import UserModel, EditModel
 
 # Auth
-from src.routes.auth import salt_password
 
 userRouter = APIRouter()
 
 
-@userRouter.get("/user", tags=["user"])
+@userRouter.post("/user", tags=["user"])
 async def read_user(userBody: UserModel):
     db = Prisma()
 
+    if userBody.email == None:
+        await db.disconnect()
+        return [{"message": "Email is required", "code": 400}]
     try:
         await db.connect()
 
-        user = await db.user.find_unique(where={"id": userBody.id})
-        print(user)
+        user = await db.user.find_unique(where={"email": userBody.email})
+
         if user == None or user.nickname == None:
-            return HTTPException(
-                status_code=404,
-                detail="User with details provided does no exist",
-            )
-        return [{"message": "User Exist", "data": user, "code": 200}]
+            return {"message": "User provider does not exist", "user_exist":False, "code": 404}
+        return {"message": "User Exist", "user_exist":True, "data": user, "code": 200}
 
     except Exception as error:
         raise HTTPException(status_code=500, detail=str(error))
