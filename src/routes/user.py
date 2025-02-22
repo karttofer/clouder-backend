@@ -23,7 +23,7 @@ async def read_user(userBody: UserModel):
 
         user = await db.user.find_unique(where={"email": userBody.email})
 
-        if user == None or user.nickname == None:
+        if user == None or user.name == None:
             return {"message": "User provider does not exist", "user_exist":False, "code": 404}
         return {"message": "User Exist", "user_exist":True, "data": user, "code": 200}
 
@@ -45,13 +45,13 @@ async def edit_user(editBody: EditModel):
             if value and field not in ["password", "id"]
         }
 
-        if editBody.nickname or editBody.email:
+        if editBody.name or editBody.email:
             existing_user = await db.user.find_unique(where=update_data)
 
             if existing_user and existing_user.id:
                 raise HTTPException(
                     status_code=409,
-                    detail="User with the provided nickname or email already exists",
+                    detail="User with the provided name or email already exists",
                 )
 
         if editBody.password:

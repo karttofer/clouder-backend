@@ -9,6 +9,6 @@ class UserModel(BaseModel):
 
 class EditModel(BaseModel):
     id: str
-    nickname: Optional[str] = None
+    name: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None

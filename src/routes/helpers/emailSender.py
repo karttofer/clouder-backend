@@ -11,7 +11,8 @@ SENDER_API_KEY = os.getenv("SENDER_API_KEY")
 
 # Your email credentials
 sender_email = SENDER_EMAIL
-sender_password =SENDER_API_KEY
+sender_password = SENDER_API_KEY
+
 
 # Recipient email address
 def send_email(recipient_email, subject, body):
