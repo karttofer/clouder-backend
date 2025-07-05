@@ -11,7 +11,7 @@ class SendMagicLinkModel(BaseModel):
 class RegisterModel(BaseModel):
     name: str
     email: str
-    user_type: str
+    userType: str
 
 class RegisterByJWT(BaseModel):
     jwt: str
@@ -23,7 +23,7 @@ class ResetPaswordModel(BaseModel):
 
 class SendMagicLinkModel(BaseModel):
     email: str
-    verification_type: str
+    verificationType: str
     isResend: bool = False
 
 class JWTFUSerLogin(BaseModel):
@@ -31,10 +31,10 @@ class JWTFUSerLogin(BaseModel):
 
 class SecretPINVerification(BaseModel):
     email: str
-    user_pin: int
+    userPin: int
 
 class RegisterGoogleUser(BaseModel):
     name: str
     email: str
     picture: str
-    auth_method: str
+    authMethod: str

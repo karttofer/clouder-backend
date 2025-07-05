@@ -76,7 +76,7 @@ async def read_user(regisBody: RegisterModel):
     db = Prisma()
     await db.connect()
 
-    if regisBody.user_type is None:
+    if regisBody.userType is None:
         return {
             "message": "backend.invalid_method",
             "messageType": "error",
@@ -98,7 +98,7 @@ async def read_user(regisBody: RegisterModel):
         data={
             "name": regisBody.name,
             "email": regisBody.email,
-            "user_type": regisBody.user_type,
+            "user_type": regisBody.userType,
         }
     )
 
@@ -138,7 +138,7 @@ async def read_user(magicLinkRestBody: SendMagicLinkModel):
             "redirect": True,
             "code": 200,
         }
-    if magicLinkRestBody.verification_type is None:
+    if magicLinkRestBody.verificationType is None:
         await db.disconnect()
         raise HTTPException(status_code=500, detail="Verification type is required")
 
@@ -147,7 +147,7 @@ async def read_user(magicLinkRestBody: SendMagicLinkModel):
 
         if exist_pin and magicLinkRestBody.isResend is False:
             return {
-                "message": f"Pin for {magicLinkRestBody.verification_type} was sent to {magicLinkRestBody.email}, please check your email.",
+                "message": f"Pin for {magicLinkRestBody.verificationType} was sent to {magicLinkRestBody.email}, please check your email.",
                 "code": 200,
             }
 
@@ -156,9 +156,9 @@ async def read_user(magicLinkRestBody: SendMagicLinkModel):
 
         pin = generate_4_digit_pin()
 
-        if magicLinkRestBody.verification_type == "confirm-email":
+        if magicLinkRestBody.verificationType == "confirm-email":
             email_subject_body = confirm_email_message(pin)
-        elif magicLinkRestBody.verification_type == "reset-password":
+        elif magicLinkRestBody.verificationType == "reset-password":
             email_subject_body = reset_password_messages(pin)
         else:
             await db.disconnect()
@@ -178,7 +178,7 @@ async def read_user(magicLinkRestBody: SendMagicLinkModel):
 
         await db.disconnect()
         return {
-            "message": f"Pin for {magicLinkRestBody.verification_type} was sent to {magicLinkRestBody.email}, please check your email.",
+            "message": f"Pin for {magicLinkRestBody.verificationType} was sent to {magicLinkRestBody.email}, please check your email.",
             "code": 200,
         }
 
@@ -189,7 +189,7 @@ async def read_user(verificationPin: SecretPINVerification):
     db = Prisma()
     await db.connect()
 
-    if verificationPin.email == None or verificationPin.user_pin == None:
+    if verificationPin.email == None or verificationPin.userPin == None:
         await db.disconnect()
         return {"message": "Email and pin are required", "status": 400}
 
@@ -200,7 +200,7 @@ async def read_user(verificationPin: SecretPINVerification):
         return {"message": "User does not exist", "status": 404}
 
     pin_exist = await db.secretpins.find_unique(
-        where={"user_id": user_id_exist.id, "pin": verificationPin.user_pin}
+        where={"user_id": user_id_exist.id, "pin": verificationPin.userPin}
     )
 
     if pin_exist:
@@ -209,7 +209,7 @@ async def read_user(verificationPin: SecretPINVerification):
             data={"user_completed_registration": True},
         )
         await db.secretpins.delete(
-            where={"user_id": user_id_exist.id, "pin": verificationPin.user_pin}
+            where={"user_id": user_id_exist.id, "pin": verificationPin.userPin}
         )
         await db.disconnect()
         return {
@@ -243,7 +243,7 @@ async def googleAuth(googleUser: RegisterGoogleUser):
             "user_completed_registration": user.user_completed_registration,
         }
 
-    match googleUser.auth_method:
+    match googleUser.authMethod:
         case "register":
             await db.user.create(
                 data={
