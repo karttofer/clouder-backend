@@ -24,7 +24,12 @@ You must follow these steps before starting the Uvicorn command. If you don't es
 # After create the enviroment for python
 1. pip install -r requirements.txt 
 2. prisma generate
+
+# Local enviroments (Not supabase)
 3. prisma migrate dev
+# For supabase (Supabase don't allow the migrate since the service is already running, we don't have this control, so we just need to do the deployment)
+3. prisma migrate deploy
+
 4. uvicorn main:app --reload
 ```
 

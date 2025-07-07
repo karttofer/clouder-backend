@@ -38,3 +38,10 @@ class RegisterGoogleUser(BaseModel):
     email: str
     picture: str
     authMethod: str
+
+class IsLoggedUser(BaseModel):
+    email: str
+
+class ChangeIsLogged(BaseModel):
+    email: str
+    isLogged: bool

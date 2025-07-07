@@ -10,15 +10,36 @@ datasource db {
 }
 
 model User {
-  id                          String  @id @default(uuid())
-  name                        String  @unique
-  email                       String  @unique
-  user_type                   String
-  user_image                  String?
-  user_completed_registration Boolean @default(false)
+  id                     String        @id @default(uuid())
+  nickname               String        @unique
+  email                  String        @unique
+  user_type              String
+  registration_completed Boolean
+  Threads                UserThreads[]
+  UserPin                SecretPins[]
+  LoggedUsers            LoggedUsers?
+}
+
+model LoggedUsers {
+  id       String  @id @default(uuid())
+  user     User    @relation(fields: [user_id], references: [id])
+  user_id  String  @unique
+  isLogged Boolean
 }
 
 model SecretPins {
-  user_id String @id
+  id      String @id @default(uuid())
+  user    User   @relation(fields: [user_id], references: [id])
+  user_id String @unique
   pin     Int
+}
+
+model UserThreads {
+  thread_id   String  @unique
+  message_id  String  @unique
+  user        User    @relation(fields: [user_id], references: [id])
+  user_id     String
+  thread_name String
+  isArchived  Boolean
+  created_at  Int
 }

@@ -7,7 +7,6 @@ from prisma import Prisma
 from src.routes.models.user import UserModel, EditModel
 
 # Auth
-
 userRouter = APIRouter()
 
 
@@ -23,7 +22,7 @@ async def read_user(userBody: UserModel):
 
         user = await db.user.find_unique(where={"email": userBody.email})
 
-        if user == None or user.name == None:
+        if user == None or user.nickname == None:
             return {"message": "User provider does not exist", "user_exist":False, "code": 404}
         return {"message": "User Exist", "user_exist":True, "data": user, "code": 200}
 

@@ -1,14 +1,17 @@
 # Deps
 import asyncio
 from typing import Annotated
+from urllib import request
+
 from fastapi import APIRouter, HTTPException, status
 from prisma import Prisma
 import bcrypt
 import base64
 from google.auth import jwt
+from prisma.errors import UniqueViolationError
 
 # Helpers
-from src.routes.helpers.configs import reset_password_messages, confirm_email_message
+from src.routes.helpers.configs import confirm_email_message
 from src.routes.helpers.emailSender import send_email
 from src.routes.helpers.methods import generate_4_digit_pin
 
@@ -20,6 +23,8 @@ from src.routes.models.auth import (
     LoginModel,
     SecretPINVerification,
     RegisterGoogleUser,
+    IsLoggedUser,
+    ChangeIsLogged
 )
 
 authRouter = APIRouter()
@@ -51,22 +56,25 @@ async def read_users(loginBody: LoginModel):
             "code": 404,
         }
 
-    if user.user_completed_registration == False:
+    if user.registration_completed == False:
         await db.disconnect()
         return {
             "message": "backend.user_registration_not_completed",
             "messageType": "warning",
-            "user_completed_registration": user.user_completed_registration,
+            "registration_completed": user.registration_completed,
             "user_email": user.email,
             "status": 400,
         }
 
-    if user and user.user_completed_registration:
+    if user and user.registration_completed:
         db.disconnect()
         return {
             "message": "backend.user_logged_successfully",
             "messageType": "success",
-            "user_completed_registration": user.user_completed_registration,
+            "userInfo": {
+                "registration_completed": user.registration_completed,
+                "email": user.email
+            },
             "status": 200,
         }
 
@@ -83,10 +91,9 @@ async def read_user(regisBody: RegisterModel):
             "status": 500,
         }
 
-    name_exist = await db.user.find_unique(where={"name": regisBody.name})
-    email_exist = await db.user.find_unique(where={"email": regisBody.email})
+    user_exist = await db.user.find_unique(where={"email": regisBody.email})
 
-    if name_exist or email_exist:
+    if user_exist:
         await db.disconnect()
         return {
             "message": "backend.user_exist",
@@ -96,13 +103,21 @@ async def read_user(regisBody: RegisterModel):
 
     await db.user.create(
         data={
-            "name": regisBody.name,
+            "nickname": regisBody.name,
             "email": regisBody.email,
             "user_type": regisBody.userType,
+            "registration_completed": False
         }
     )
 
     user_created = await db.user.find_unique(where={"email": regisBody.email})
+
+    await db.loggedusers.create(
+        data={
+            "user_id": user_created.id,
+            "isLogged": False
+        }
+    )
 
     return {
         "message": "backend.user_created",
@@ -110,82 +125,146 @@ async def read_user(regisBody: RegisterModel):
         "status": 200,
         "user": {
             "email": user_created.email,
-            "name": user_created.name,
+            "nickname": user_created.nickname,
             "user_id": user_created.id,
-            "user_completed_registration": user_created.user_completed_registration,
+            "user_type": user_created.user_type,
+            "registration_completed": user_created.registration_completed,
         },
         "user_created": True,
     }
 
 
-# Esto no debe estar enviando o creando mas magic link si el magic link existr
-# Deberiamos esperar a que se expire y decirle al usuario que ya tiene uno y no crearlo
+@authRouter.post("/auth/user-logged", tags=["auth"])
+async def is_user_logged(isLogged: IsLoggedUser):
+    db = Prisma()
+    await db.connect()
 
-# 1. Si el usuario pide otro pin con "Resend Pin" -> le creamos otro Pin e iremos aumentando el tiempo
-# de espera a 1 hora por seguridad
+    user = await db.user.find_unique(where={"email": isLogged.email})
+
+    if user == None:
+        await db.disconnect()
+        return {
+            "message": "backend.user_does_not_exist",
+            "messageType": "error",
+            "status": 404,
+        }
+
+    loggedUser = await db.loggedusers.find_unique(where={"user_id": user.id})
+
+    if loggedUser.isLogged:
+        await db.disconnect()
+        return {
+            "message": "backend.user_logged_successfully",
+            "isLogged": True,
+            "messageType": "success",
+            "status": 200,
+        }
+
+    await db.disconnect()
+    return {
+        "message": "backend.user_registration_not_completed",
+        "messageType": "warning",
+        "isLogged": True,
+        "status": 200,
+
+    }
 
 
-# 2. Si el PIn existe y no pedimos otro con Resend Pin entonces el usuario debe si o si irse al correo a buscarlo
+@authRouter.put("/auth/user-logged", tags=["auth"])
+async def set_user_logged(isLoggedProps: ChangeIsLogged):
+    db = Prisma()
+    await db.connect()
+
+    user = await db.user.find_unique(where={"email": isLoggedProps.email})
+
+    if user == None:
+        await db.disconnect()
+        return {
+            "message": "backend.user_does_not_exist",
+            "messageType": "error",
+            "status": 404,
+        }
+
+    await db.loggedusers.update(
+        where={
+            "user_id": user.id
+        },
+        data={
+            "isLogged": isLoggedProps.isLogged
+        }
+    )
+    await db.disconnect()
+    return {
+        "message": "backend.user_logged_successfully",
+        "isLogged": isLoggedProps.isLogged,
+        "messageType": "success",
+        "status": 200,
+    }
+
+
+# Knowledge
+# If frontend send this request twice, supabase sometimes does not have the time
+# to process the first request, and the second request will throw a constraint error in
+# user_id - UniqueViolationError <- avoids that
 @authRouter.post("/auth/magic-link", tags=["auth"])
 async def read_user(magicLinkRestBody: SendMagicLinkModel):
     db = Prisma()
     await db.connect()
-    user = await db.user.find_unique(where={"email": magicLinkRestBody.email})
 
-    if user.user_completed_registration is True:
-        return {
-            "message": "User is already verified",
-            "redirect": True,
-            "code": 200,
-        }
-    if magicLinkRestBody.verificationType is None:
-        await db.disconnect()
-        raise HTTPException(status_code=500, detail="Verification type is required")
+    try:
+        user = await db.user.find_unique(where={"email": magicLinkRestBody.email})
+        print("User found:", user)
 
-    if user is not None:
-        exist_pin = await db.secretpins.find_unique(where={"user_id": user.id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-        if exist_pin and magicLinkRestBody.isResend is False:
+        loggedUser = await db.loggedusers.find_unique(where={"user_id": user.id})
+
+        if user.registration_completed and loggedUser and loggedUser.isLogged:
             return {
-                "message": f"Pin for {magicLinkRestBody.verificationType} was sent to {magicLinkRestBody.email}, please check your email.",
+                "message": "User is already verified and logged",
+                "redirect": True,
                 "code": 200,
             }
 
-        if magicLinkRestBody.isResend is True:
-            await db.secretpins.delete(where={"user_id": user.id})
+        if magicLinkRestBody.verificationType is None:
+            raise HTTPException(status_code=400, detail="Verification type is required")
 
         pin = generate_4_digit_pin()
 
         if magicLinkRestBody.verificationType == "confirm-email":
             email_subject_body = confirm_email_message(pin)
-        elif magicLinkRestBody.verificationType == "reset-password":
-            email_subject_body = reset_password_messages(pin)
         else:
-            await db.disconnect()
-            raise HTTPException(status_code=500, detail="Invalid verification type")
+            raise HTTPException(status_code=400, detail="Invalid verification type")
 
-        await db.secretpins.create(data={"user_id": user.id, "pin": pin})
+        try:
+            await db.secretpins.create(data={"user_id": user.id, "pin": pin})
 
-        # Here we are sending the email with the correct subject
-        send_email(
-            magicLinkRestBody.email,
-            email_subject_body["subject"],
-            email_subject_body["body"],
-        )
+            send_email(
+                magicLinkRestBody.email,
+                email_subject_body["subject"],
+                email_subject_body["body"],
+            )
+        except UniqueViolationError:
+            return {
+                "message": f"A pin has already been sent to {magicLinkRestBody.email}. Please check your inbox.",
+                "code": 200,
+            }
 
-        # Delete expired Pin with a worker
         asyncio.create_task(delete_pin_after_delay(user.id, 600))
 
-        await db.disconnect()
         return {
             "message": f"Pin for {magicLinkRestBody.verificationType} was sent to {magicLinkRestBody.email}, please check your email.",
             "code": 200,
         }
 
+    finally:
+        await db.disconnect()
+        print("Disconnecting DB...")
+
 
 @authRouter.post("/auth/pin-verification", tags=["auth"])
 async def read_user(verificationPin: SecretPINVerification):
-
     db = Prisma()
     await db.connect()
 
@@ -193,35 +272,51 @@ async def read_user(verificationPin: SecretPINVerification):
         await db.disconnect()
         return {"message": "Email and pin are required", "status": 400}
 
-    user_id_exist = await db.user.find_unique(where={"email": verificationPin.email})
+    user = await db.user.find_unique(where={"email": verificationPin.email})
 
-    if user_id_exist == None:
+    if user == None:
         await db.disconnect()
         return {"message": "User does not exist", "status": 404}
 
     pin_exist = await db.secretpins.find_unique(
-        where={"user_id": user_id_exist.id, "pin": verificationPin.userPin}
+        where={"user_id": user.id, "pin": verificationPin.userPin}
     )
 
     if pin_exist:
         await db.user.update(
             where={"email": verificationPin.email},
-            data={"user_completed_registration": True},
+            data={"registration_completed": True},
         )
         await db.secretpins.delete(
-            where={"user_id": user_id_exist.id, "pin": verificationPin.userPin}
+            where={"user_id": user.id, "pin": verificationPin.userPin}
+        )
+
+        await db.loggedusers.update(
+            where={
+                "user_id": user.id
+            },
+            data={
+                "isLogged": True
+            }
         )
         await db.disconnect()
         return {
             "message": "PIN is valid, user can continue",
-            "is_valid_pin": True,
+            "isValidPin": True,
+            "user": {
+                "isLogged": True,
+                "registrationCompleted": True,
+            },
             "status": 200,
         }
     else:
         await db.disconnect()
         return {
             "message": "PIN is invalid, please try again",
-            "is_valid_pin": False,
+            "user": {
+                "isLogged": False,
+                "registrationCompleted": user.registration_completed,
+            },
             "status": 404,
         }
 
@@ -240,14 +335,14 @@ async def googleAuth(googleUser: RegisterGoogleUser):
             "messageType": "warning",
             "status": 409,
             "user_exist": True,
-            "user_completed_registration": user.user_completed_registration,
+            "registration_completed": user.registration_completed,
         }
 
     match googleUser.authMethod:
         case "register":
             await db.user.create(
                 data={
-                    "name": googleUser.name,
+                    "nickname": googleUser.name,
                     "email": googleUser.email,
                     "user_image": googleUser.picture,
                 }
