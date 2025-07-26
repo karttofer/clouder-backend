@@ -195,7 +195,7 @@ async def set_user_logged(isLoggedProps: ChangeIsLogged):
     )
     await db.disconnect()
     return {
-        "message": "backend.user_logged_successfully",
+        "message": "backend.user_logged_successfully" if isLoggedProps.isLogged == True else "backend.user_logout_successfully",
         "isLogged": isLoggedProps.isLogged,
         "messageType": "success",
         "status": 200,
@@ -345,6 +345,16 @@ async def googleAuth(googleUser: RegisterGoogleUser):
                     "nickname": googleUser.name,
                     "email": googleUser.email,
                     "user_image": googleUser.picture,
+                    "user_type": "company",
+                    "registration_completed": True
+                }
+            )
+            just_created_user = await db.user.find_unique(where={"email": googleUser.email})
+
+            await db.loggedusers.create(
+                data={
+                    "user_id": just_created_user.id,
+                    "isLogged": True
                 }
             )
             await db.disconnect()
@@ -361,12 +371,6 @@ async def googleAuth(googleUser: RegisterGoogleUser):
                 "messageType": "error",
                 "status": 400,
             }
-
-    new_password = salt_password(resetPassBody.new_password)
-
-    await db.user.update(
-        where={"id": resetPassBody.user_id}, data={"password": new_password}
-    )
 
     await db.disconnect()
     return [{"message": "auth-magic-link", "code": 200}]
