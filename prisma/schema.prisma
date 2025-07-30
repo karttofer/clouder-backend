@@ -11,36 +11,54 @@ datasource db {
 
 model User {
   id                     String        @id @default(uuid())
-  nickname               String        @unique
-  email                  String        @unique
-  user_type              String
-  registration_completed Boolean
+  nickname               String        @unique @default("")
+  email                  String        @unique @default("")
+  user_type              String        @default("")
+  registration_completed Boolean       @default(false)
   user_image             String        @default("")
   Threads                UserThreads[]
   UserPin                SecretPins[]
   LoggedUsers            LoggedUsers?
+  workspaces             Workspaces[]
+}
+
+model Core {
+  id            String @id @default(uuid())
+  defaultThemes Json?  @default("{}")
+  countryCodes  Json?  @default("[{}]")
+}
+
+model Workspaces {
+  id            String  @id @default(uuid())
+  workspaceName String  @default("")
+  identify      Json?   @default("{}")
+  kpi           Json?   @default("[{}]")
+  forms         Json?   @default("[{}]")
+  messages      Json?   @default("[{}]")
+  User          User?   @relation(fields: [userId], references: [id])
+  userId        String? @default("")
 }
 
 model LoggedUsers {
   id       String  @id @default(uuid())
   user     User    @relation(fields: [user_id], references: [id])
-  user_id  String  @unique
-  isLogged Boolean
+  user_id  String  @unique @default("")
+  isLogged Boolean @default(false)
 }
 
 model SecretPins {
   id      String @id @default(uuid())
   user    User   @relation(fields: [user_id], references: [id])
-  user_id String @unique
-  pin     Int
+  user_id String @unique @default("")
+  pin     Int    @default(0)
 }
 
 model UserThreads {
-  thread_id   String  @unique
-  message_id  String  @unique
-  user        User    @relation(fields: [user_id], references: [id])
-  user_id     String
-  thread_name String
-  isArchived  Boolean
-  created_at  Int
+  thread_id   String   @unique
+  message_id  String   @unique
+  user        User     @relation(fields: [user_id], references: [id])
+  user_id     String   @default("")
+  thread_name String   @default("")
+  isArchived  Boolean  @default(false)
+  created_at  DateTime @default(now())
 }
