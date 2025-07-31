@@ -1,18 +1,12 @@
-# TODO: Refactor everything related to this file
-# TODO: CRUD Workspace
-
 # Deps
 import uuid
+import json
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, File, UploadFile
 from prisma import Prisma
-from prisma.types import UserWhereUniqueInput
-import json
 
 # Models
-from src.routes.models.user import UserModel, EditModel, ModifyWorkspace, CreateWorkspace
-
-# Utils
-from src.routes.helpers.methods import workspace_template
+from src.routes.models.user import GetWorkspaces, GetWorkspace, UserModel, EditModel, ModifyWorkspace, CreateWorkspace
 
 # Auth
 userRouter = APIRouter()
@@ -76,7 +70,7 @@ async def read_user(file: UploadFile = File(...)):
     # Give unique name to the file
     file.filename = f"{uuid.uuid4()}.png"
 
-    # Read the content of the file    
+    # Read the content of the file
     fileContent = await file.read()
 
     # Save the file
@@ -97,26 +91,41 @@ async def read_user(modifyWorkspace: ModifyWorkspace):
     print("")
 
 
-from datetime import datetime
-
-from datetime import datetime
-
+# ___WORKSPACE ENDPOINTS___
 
 @userRouter.post("/user/create/workspace", tags=["user"])
 async def create_workspace(create_workspace_body: CreateWorkspace):
     db = Prisma()
     await db.connect()
 
-    now = datetime.utcnow().isoformat()
+    if not create_workspace_body.workspaceName or not create_workspace_body.userName or not create_workspace_body.userId:
+        return {
+            "message": "backend.errors.body.prop_missing",
+            "status": 500
+        }
+
+    already_exist = await db.workspaces.find_first(
+        where={
+            "userId": create_workspace_body.userId,
+            "workspaceName": create_workspace_body.workspaceName
+        })
+
+    if already_exist is not None and already_exist.workspaceName is not None:
+        return {
+            "message": "backend.errors.body.already_exist",
+            "status": 409,
+        }
+
+    now = datetime.now().isoformat()
 
     await db.workspaces.create(
         data={
-            "workspaceName": create_workspace_body.workspace_name,
+            "workspaceName": create_workspace_body.workspaceName,
             "identify": json.dumps({
-                "workspaceCreateAt": "",
-                "workspaceModifiedAt": "",
+                "workspaceCreateAt": now,
+                "workspaceModifiedAt": now,
                 "whoModified": "",
-                "whoCreated": create_workspace_body.user_name
+                "whoCreated": create_workspace_body.userName
             }),
             "kpi": json.dumps([
                 {
@@ -142,6 +151,94 @@ async def create_workspace(create_workspace_body: CreateWorkspace):
             ]),
             "forms": json.dumps([{}]),
             "messages": json.dumps([{}]),
-            "userId": create_workspace_body.user_token
+            "userId": create_workspace_body.userId
         }
     )
+
+    workspace_created = await db.workspaces.find_first(
+        where={
+            "userId": create_workspace_body.userId,
+            "workspaceName": create_workspace_body.workspaceName
+        }
+    )
+
+    return {
+        "message": "backend.success.workspace.created",
+        "status": 200,
+        "created_workspace": {
+            "id": workspace_created.id,
+            "identify": workspace_created.identify,
+            "kpi": workspace_created.kpi,
+            "forms": workspace_created.forms,
+            "messages": workspace_created.messages,
+        },
+    }
+
+
+@userRouter.get("/user/get/workspace", tags=["user"])
+async def get_workspace(get_workspace_body: GetWorkspace):
+    db = Prisma()
+
+    await db.connect()
+
+    if not get_workspace_body.workspaceName or not get_workspace_body.userId:
+        return {
+            "message": "backend.errors.body.prop_missing",
+            "status": 500
+        }
+
+    workspace = await db.workspaces.find_first(
+        where={
+            "workspaceName": get_workspace_body.workspaceName,
+            "userId": get_workspace_body.userId
+        }
+    )
+
+    if workspace is None:
+        return {
+            "message": "backend.success.workspace.not_exist",
+            "status": 500,
+        }
+
+    return {
+        "message": "backend.success.workspace.found",
+        "status": 200,
+        "workspace": {
+            "id": workspace.id,
+            "identify": workspace.identify,
+            "kpi": workspace.kpi,
+            "forms": workspace.forms,
+            "messages": workspace.messages,
+        },
+    }
+
+
+@userRouter.get("/user/get/workspaces", tags=["user"])
+async def get_workspaces(get_workspace_body: GetWorkspaces):
+    db = Prisma()
+
+    await db.connect()
+
+    if not get_workspace_body.userId:
+        return {
+            "message": "backend.errors.body.prop_missing",
+            "status": 500
+        }
+
+    workspaces = await db.workspaces.find_many(
+        where={
+            "userId": get_workspace_body.userId
+        }
+    )
+
+    if not workspaces:
+        return {
+            "message": "backend.success.workspace.not_exist",
+            "status": 500,
+        }
+
+    return {
+        "message": "backend.success.workspace.found",
+        "workspacesList": workspaces,
+        "status": 200,
+    }

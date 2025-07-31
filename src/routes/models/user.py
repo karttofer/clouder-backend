@@ -73,6 +73,15 @@ class ModifyWorkspace(BaseModel):
 
 
 class CreateWorkspace(BaseModel):
-    workspace_name: str = ""
-    user_token: str
-    user_name: str
+    workspaceName: str = ""
+    userId: str
+    userName: str
+
+
+class GetWorkspace(BaseModel):
+    workspaceName: str = ""
+    userId: str
+
+
+class GetWorkspaces(BaseModel):
+    userId: str

@@ -29,14 +29,14 @@ model Core {
 }
 
 model Workspaces {
-  id            String  @id @default(uuid())
-  workspaceName String  @default("")
-  identify      Json?   @default("{}")
-  kpi           Json?   @default("[{}]")
-  forms         Json?   @default("[{}]")
-  messages      Json?   @default("[{}]")
-  User          User?   @relation(fields: [userId], references: [id])
-  userId        String? @default("")
+  id            String @id @unique @default(uuid())
+  workspaceName String @default("")
+  identify      Json   @default("{}")
+  kpi           Json   @default("[{}]")
+  forms         Json   @default("[{}]")
+  messages      Json   @default("[{}]")
+  User          User   @relation(fields: [userId], references: [id])
+  userId        String @default("")
 }
 
 model LoggedUsers {
