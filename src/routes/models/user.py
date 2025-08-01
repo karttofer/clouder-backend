@@ -79,9 +79,23 @@ class CreateWorkspace(BaseModel):
 
 
 class GetWorkspace(BaseModel):
-    workspaceName: str = ""
-    userId: str
+    workspaceId: str
 
 
 class GetWorkspaces(BaseModel):
     userId: str
+
+
+class DeleteWorkspace(BaseModel):
+    workspaceId: str
+
+
+class GiveWorkspaceAccess(BaseModel):
+    userId: str
+    workspaceId: str
+    role: str
+
+
+class RoleModel(BaseModel):
+    roleName: str
+    roleValue: int

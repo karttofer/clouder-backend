@@ -84,7 +84,7 @@ async def read_user(regisBody: RegisterModel):
     db = Prisma()
     await db.connect()
 
-    if regisBody.userType is None:
+    if regisBody.roleId is None:
         return {
             "message": "backend.invalid_method",
             "messageType": "error",
@@ -105,8 +105,8 @@ async def read_user(regisBody: RegisterModel):
         data={
             "nickname": regisBody.name,
             "email": regisBody.email,
-            "user_type": regisBody.userType,
-            "registration_completed": False
+            "registration_completed": False,
+            "roleId": regisBody.roleId
         }
     )
 
@@ -127,7 +127,7 @@ async def read_user(regisBody: RegisterModel):
             "email": user_created.email,
             "nickname": user_created.nickname,
             "user_id": user_created.id,
-            "user_type": user_created.user_type,
+            "roleId": user_created.roleId,
             "registration_completed": user_created.registration_completed,
         },
         "user_created": True,
@@ -228,14 +228,16 @@ async def read_user(magicLinkRestBody: SendMagicLinkModel):
             }
 
         if magicLinkRestBody.verificationType is None:
-            raise HTTPException(status_code=400, detail="Verification type is required")
+            raise HTTPException(
+                status_code=400, detail="Verification type is required")
 
         pin = generate_4_digit_pin()
 
         if magicLinkRestBody.verificationType == "confirm-email":
             email_subject_body = confirm_email_message(pin)
         else:
-            raise HTTPException(status_code=400, detail="Invalid verification type")
+            raise HTTPException(
+                status_code=400, detail="Invalid verification type")
 
         try:
             await db.secretpins.create(data={"user_id": user.id, "pin": pin})

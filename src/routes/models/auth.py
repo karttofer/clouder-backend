@@ -1,8 +1,10 @@
 # Deps
 from pydantic import BaseModel
 
+
 class LoginModel(BaseModel):
     email: str
+
 
 class SendMagicLinkModel(BaseModel):
     email: str
@@ -11,10 +13,12 @@ class SendMagicLinkModel(BaseModel):
 class RegisterModel(BaseModel):
     name: str
     email: str
-    userType: str
+    roleId: str
+
 
 class RegisterByJWT(BaseModel):
     jwt: str
+
 
 class ResetPaswordModel(BaseModel):
     user_id: str
@@ -26,12 +30,15 @@ class SendMagicLinkModel(BaseModel):
     verificationType: str
     isResend: bool = False
 
+
 class JWTFUSerLogin(BaseModel):
     jwt: str
+
 
 class SecretPINVerification(BaseModel):
     email: str
     userPin: int
+
 
 class RegisterGoogleUser(BaseModel):
     name: str
@@ -39,8 +46,10 @@ class RegisterGoogleUser(BaseModel):
     picture: str
     authMethod: str
 
+
 class IsLoggedUser(BaseModel):
     email: str
+
 
 class ChangeIsLogged(BaseModel):
     email: str

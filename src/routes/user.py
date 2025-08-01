@@ -5,8 +5,11 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, File, UploadFile
 from prisma import Prisma
 
+# Methods
+from src.routes.helpers.methods import is_int_value, is_valid_name
+
 # Models
-from src.routes.models.user import GetWorkspaces, GetWorkspace, UserModel, EditModel, ModifyWorkspace, CreateWorkspace
+from src.routes.models.user import RoleModel, GiveWorkspaceAccess, DeleteWorkspace, GetWorkspaces, GetWorkspace, UserModel, EditModel, ModifyWorkspace, CreateWorkspace
 
 # Auth
 userRouter = APIRouter()
@@ -85,22 +88,122 @@ async def read_user(file: UploadFile = File(...)):
         }
     }}]
 
+# ___USER GENERALS___
+
+
+@userRouter.post("/user/create/role", tags=["user"])
+async def delete_workspace(role_body: RoleModel):
+    """
+        We need to avoid users to create roles with
+        special characters, should we handle this by
+        frontend?
+    """
+    db = Prisma()
+    await db.connect()
+
+    if not is_valid_name(role_body.roleName) or not is_int_value(role_body.roleValue):
+        return {
+            "message": "backend.errors.body.prop_missing_or_not_valid",
+            "status": 500
+        }
+
+    already_role_exist = await db.roles.find_first(
+        where={
+            "OR": [
+                {"roleName": role_body.roleName},
+                {"roleValue": role_body.roleValue}
+            ]
+        }
+    )
+
+    if already_role_exist:
+        if already_role_exist.roleName == role_body.roleName or already_role_exist.roleValue == role_body.roleValue:
+            return {
+                "message": "backend.errors.body.already_exist",
+                "status": 409,
+            }
+
+    await db.roles.create(
+        data={
+            "roleName": role_body.roleName,
+            "roleValue": role_body.roleValue,
+        }
+    )
+
+    return {
+        "message": "backend.success.role.created",
+        "status": 200,
+    }
+
+# ___WORKSPACE ENDPOINTS___
+
+
+@userRouter.delete("/user/delete/workspace", tags=["user"])
+async def delete_workspace(deleteWorkspace: DeleteWorkspace):
+    """
+        Quick comment here, when we delete a workspace
+        we should update the KPIs since this affects
+        analytics
+    """
+    db = Prisma()
+    await db.connect()
+
+    if not deleteWorkspace.workspaceId:
+        return {
+            "message": "backend.errors.body.prop_missing",
+            "status": 500
+        }
+
+    workspace = await db.workspaces.find_first(
+        where={
+            "id": deleteWorkspace.workspaceId
+        }
+    )
+
+    if not workspace:
+        return {
+            "message": "backend.success.workspace.not_exist",
+            "status": 500,
+        }
+
+    await db.workspaces.delete(
+        where={
+            "id": deleteWorkspace.workspaceId
+        }
+    )
+
+    return {
+        "message": "backend.success.workspace.delete",
+        "status": 200,
+    }
+
 
 @userRouter.put("/user/modify/workspace", tags=["user"])
-async def read_user(modifyWorkspace: ModifyWorkspace):
+async def modify_workspace(modifyWorkspace: ModifyWorkspace):
     print("")
 
 
-# ___WORKSPACE ENDPOINTS___
+@userRouter.post("/user/give/access/workspace", tags=["user"])
+async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
+    db = Prisma()
+
+    await db.connect()
+
+    if not create_workspace_body.userId or not create_workspace_body.userId or not create_workspace_body.role:
+        return {
+            "message": "backend.errors.body.prop_missing",
+            "status": 500
+        }
+
 
 @userRouter.post("/user/create/workspace", tags=["user"])
 async def create_workspace(create_workspace_body: CreateWorkspace):
     db = Prisma()
     await db.connect()
 
-    if not create_workspace_body.workspaceName or not create_workspace_body.userName or not create_workspace_body.userId:
+    if not is_valid_name(create_workspace_body.workspaceName) or not create_workspace_body.userName or not create_workspace_body.userId:
         return {
-            "message": "backend.errors.body.prop_missing",
+            "message": "backend.errors.body.prop_missing_or_not_valid",
             "status": 500
         }
 
@@ -181,16 +284,15 @@ async def get_workspace(get_workspace_body: GetWorkspace):
 
     await db.connect()
 
-    if not get_workspace_body.workspaceName or not get_workspace_body.userId:
+    if not get_workspace_body.workspaceId:
         return {
             "message": "backend.errors.body.prop_missing",
             "status": 500
         }
 
-    workspace = await db.workspaces.find_first(
+    workspace = await db.workspaces.find_unique(
         where={
-            "workspaceName": get_workspace_body.workspaceName,
-            "userId": get_workspace_body.userId
+            "id": get_workspace_body.workspaceId
         }
     )
 
