@@ -79,11 +79,8 @@ class CreateWorkspace(BaseModel):
 
 
 class GetWorkspace(BaseModel):
-    workspaceId: str
-
-
-class GetWorkspaces(BaseModel):
-    userId: str
+    workspaceId: Optional[str] = ""
+    userId: Optional[str] = ""
 
 
 class DeleteWorkspace(BaseModel):
@@ -93,9 +90,33 @@ class DeleteWorkspace(BaseModel):
 class GiveWorkspaceAccess(BaseModel):
     userId: str
     workspaceId: str
-    role: str
+    roleId: str
+
+
+class GetWorkspaceByAccess(BaseModel):
+    userId: str
+    getAll: bool = False
+
+
+class DeleteInviteWorkspace(BaseModel):
+    workspaceId: str
 
 
 class RoleModel(BaseModel):
     roleName: str
     roleValue: int
+
+# This should be roleType not roleValue
+
+
+class RoleByValue(BaseModel):
+    roleValue: int
+
+
+class PermissionsModel (BaseModel):
+    permissionsType: int
+    permissionsLabel: str
+
+
+class GetPermissionsModel (BaseModel):
+    permissionId: str = ""

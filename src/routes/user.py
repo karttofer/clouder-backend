@@ -9,7 +9,7 @@ from prisma import Prisma
 from src.routes.helpers.methods import is_int_value, is_valid_name
 
 # Models
-from src.routes.models.user import RoleModel, GiveWorkspaceAccess, DeleteWorkspace, GetWorkspaces, GetWorkspace, UserModel, EditModel, ModifyWorkspace, CreateWorkspace
+from src.routes.models.user import RoleByValue, GetPermissionsModel, PermissionsModel, DeleteInviteWorkspace, GetWorkspaceByAccess, RoleModel, GiveWorkspaceAccess, DeleteWorkspace, GetWorkspace, UserModel, EditModel, ModifyWorkspace, CreateWorkspace
 
 # Auth
 userRouter = APIRouter()
@@ -92,20 +92,20 @@ async def read_user(file: UploadFile = File(...)):
 
 
 @userRouter.post("/user/create/role", tags=["user"])
-async def delete_workspace(role_body: RoleModel):
+async def create_role(role_body: RoleModel):
     """
         We need to avoid users to create roles with
         special characters, should we handle this by
         frontend?
     """
-    db = Prisma()
-    await db.connect()
-
     if not is_valid_name(role_body.roleName) or not is_int_value(role_body.roleValue):
         return {
             "message": "backend.errors.body.prop_missing_or_not_valid",
             "status": 500
         }
+
+    db = Prisma()
+    await db.connect()
 
     already_role_exist = await db.roles.find_first(
         where={
@@ -135,6 +135,154 @@ async def delete_workspace(role_body: RoleModel):
         "status": 200,
     }
 
+
+@userRouter.delete("/user/delete/role", tags=["user"])
+async def delete_workspace(role_body: RoleByValue):
+    if not role_body.roleValue:
+        return {
+            "message": "backend.errors.body.prop_missing_or_not_valid",
+            "status": 500
+        }
+
+    db = Prisma()
+    await db.connect()
+
+    role_exist = await db.roles.find_unique(
+        where={
+            "roleValue": role_body.roleValue
+        }
+    )
+
+    if not role_exist:
+        await db.disconnect()
+        return {
+            "message": "backend.success.role.not_found",
+            "status": 404,
+        }
+
+    await db.roles.delete(
+        where={
+            "roleValue": role_body.roleValue
+        }
+    )
+    return {
+        "message": "backend.success.role.deleted",
+        "status": 200,
+    }
+
+
+@userRouter.post("/user/create/permissions", tags=["user"])
+async def create_permission(post_permissions_body: PermissionsModel):
+    if post_permissions_body.permissionsType is None and not post_permissions_body.permissionsLabel:
+        return {
+            "message": "backend.errors.body.prop_missing",
+            "status": 400
+        }
+
+    db = Prisma()
+    await db.connect()
+
+    exist_permission = await db.permissions.find_unique(
+        where={
+            "permissionsType": post_permissions_body.permissionsType
+        }
+    )
+
+    if exist_permission is not None:
+        await db.disconnect()
+        return {
+            "message": "backend.alerts.permissions.already_exist",
+            "status": 409,
+        }
+
+    created_permission = await db.permissions.create(
+        data={
+            "permissionsType": post_permissions_body.permissionsType,
+            "permissionsLabel": post_permissions_body.permissionsLabel
+        }
+    )
+
+    await db.disconnect()
+
+    return {
+        "message": "backend.success.permissions.success",
+        "status": 201,
+        "data": created_permission
+    }
+
+
+@userRouter.get("/user/get/permissions", tags=["user"])
+async def get_permissions(post_permissions_body: GetPermissionsModel):
+    print(post_permissions_body)
+    if not post_permissions_body.permissionId:
+        return {
+            "message": "backend.alert.permissions.prop_missing",
+            "status": 400
+        }
+
+    db = Prisma()
+    await db.connect()
+
+    if post_permissions_body.permissionId:
+        permission = await db.permissions.find_unique(
+            where={"id": post_permissions_body.permissionId}
+        )
+        await db.disconnect()
+
+        if not permission:
+            return {
+                "message": "backend.errors.permissions.not_found",
+                "status": 404
+            }
+
+        return {
+            "message": "backend.success.permissions.found",
+            "status": 200,
+            "data": permission
+        }
+    else:
+        permissions = await db.permissions.find_many()
+        await db.disconnect()
+
+        return {
+            "message": "backend.success.permissions.found_all",
+            "status": 200,
+            "data": permissions
+        }
+
+
+@userRouter.delete("/user/delete/permissions", tags=["user"])
+async def delete_permission(delete_permissions_body: GetPermissionsModel):
+    if not delete_permissions_body.permissionId:
+        return {
+            "message": "backend.alert.permissions.prop_missing",
+            "status": 400
+        }
+
+    db = Prisma()
+    await db.connect()
+
+    existing = await db.permissions.find_unique(
+        where={"id": delete_permissions_body.permissionId}
+    )
+
+    if not existing:
+        return {
+            "message": "backend.errors.permissions.not_found",
+            "status": 404
+        }
+
+    await db.permissions.delete(
+        where={"id": delete_permissions_body.permissionId}
+    )
+
+    await db.disconnect()
+
+    return {
+        "message": "backend.success.permissions.deleted",
+        "status": 200
+    }
+
 # ___WORKSPACE ENDPOINTS___
 
 
@@ -145,14 +293,15 @@ async def delete_workspace(deleteWorkspace: DeleteWorkspace):
         we should update the KPIs since this affects
         analytics
     """
-    db = Prisma()
-    await db.connect()
 
     if not deleteWorkspace.workspaceId:
         return {
             "message": "backend.errors.body.prop_missing",
             "status": 500
         }
+
+    db = Prisma()
+    await db.connect()
 
     workspace = await db.workspaces.find_first(
         where={
@@ -161,6 +310,7 @@ async def delete_workspace(deleteWorkspace: DeleteWorkspace):
     )
 
     if not workspace:
+        await db.disconnect()
         return {
             "message": "backend.success.workspace.not_exist",
             "status": 500,
@@ -172,40 +322,156 @@ async def delete_workspace(deleteWorkspace: DeleteWorkspace):
         }
     )
 
+    await db.disconnect()
     return {
         "message": "backend.success.workspace.delete",
         "status": 200,
     }
 
 
-@userRouter.put("/user/modify/workspace", tags=["user"])
-async def modify_workspace(modifyWorkspace: ModifyWorkspace):
-    print("")
-
-
-@userRouter.post("/user/give/access/workspace", tags=["user"])
-async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
-    db = Prisma()
-
-    await db.connect()
-
-    if not create_workspace_body.userId or not create_workspace_body.userId or not create_workspace_body.role:
+@userRouter.delete("/user/get/give/access/workspace", tags=["user"])
+async def delete_give_access_workspace(delete_workspaces_by_access: DeleteInviteWorkspace):
+    if not delete_workspaces_by_access.workspaceId:
         return {
             "message": "backend.errors.body.prop_missing",
             "status": 500
         }
 
-
-@userRouter.post("/user/create/workspace", tags=["user"])
-async def create_workspace(create_workspace_body: CreateWorkspace):
     db = Prisma()
     await db.connect()
 
+    exist_workspace_invite = await db.workspaceaccess.find_unique(
+        where={
+            "id": delete_workspaces_by_access.workspaceId
+        }
+    )
+
+    if not exist_workspace_invite:
+        await db.disconnect()
+        return {
+            "message": "backend.success.workspace.access.not_exist",
+            "status": 404
+        }
+
+    await db.disconnect()
+    return {
+        "message": "backend.success.workspace.delete",
+        "status": 200
+    }
+
+
+@userRouter.put("/user/put/workspace", tags=["user"])
+async def modify_workspace(modifyWorkspace: ModifyWorkspace):
+    return
+
+
+"""
+We don't need here a fallback return here because getAll is False by default
+"""
+
+
+@userRouter.get("/user/get/give/access/workspace", tags=["user"])
+async def get_give_access_workspace(get_workspaces_by_access: GetWorkspaceByAccess):
+    if not get_workspaces_by_access.userId:
+        return {
+            "message": "backend.errors.body.prop_missing",
+            "status": 500
+        }
+
+    db = Prisma()
+    await db.connect()
+
+    if get_workspaces_by_access.getAll == False:
+        invite_workspace = await db.workspaceaccess.find_first(
+            where={"userId": get_workspaces_by_access.userId}
+        )
+
+        if invite_workspace is None:
+            await db.disconnect()
+            return {
+                "message": "backend.success.workspace.access.not_exist",
+                "status": 404
+            }
+
+        await db.disconnect()
+        return {
+            "message": "backend.success.workspace.invite.success",
+            "status": 202,
+            "invite_workspace": invite_workspace
+        }
+
+    else:
+        invite_workspace = await db.workspaceaccess.find_many(
+            where={"userId": get_workspaces_by_access.userId}
+        )
+
+        if invite_workspace is None:
+            await db.disconnect()
+            return {
+                "message": "backend.success.workspace.access.not_exist",
+                "status": 404
+            }
+
+        await db.disconnect()
+        return {
+            "message": "backend.success.workspace.invite.success",
+            "status": 202,
+            "invite_workspace": invite_workspace
+        }
+
+
+# TODO - Add permissions here, we need to fill every invite with the permission type
+@userRouter.post("/user/create/give/access/workspace", tags=["user"])
+async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
+    if not give_workspace_access.workspaceId or not give_workspace_access.userId or not give_workspace_access.roleId:
+        return {
+            "message": "backend.errors.body.prop_missing",
+            "status": 500
+        }
+
+    db = Prisma()
+    await db.connect()
+
+    already_invite_exist = await db.workspaceaccess.find_first(
+        where={
+            "workspaceId": give_workspace_access.workspaceId,
+            "role": give_workspace_access.roleId,
+            "userId": give_workspace_access.userId
+        }
+    )
+
+    if already_invite_exist is not None:
+        await db.disconnect()
+        return {
+            "message": "backend.alerts.workspace.already_exist",
+            "status": 409,
+        }
+
+    await db.workspaceaccess.create(
+        data={
+            "workspaceId": give_workspace_access.workspaceId,
+            "role": give_workspace_access.roleId,
+            "userId": give_workspace_access.userId
+        }
+    )
+
+    await db.disconnect()
+    return {
+        "message": "backend.success.workspace.give_access",
+        "status": 200,
+    }
+
+
+@userRouter.post("/user/create/workspace", tags=["user"])
+async def create_workspace(create_workspace_body: CreateWorkspace):
     if not is_valid_name(create_workspace_body.workspaceName) or not create_workspace_body.userName or not create_workspace_body.userId:
         return {
             "message": "backend.errors.body.prop_missing_or_not_valid",
             "status": 500
         }
+
+    db = Prisma()
+    await db.connect()
 
     already_exist = await db.workspaces.find_first(
         where={
@@ -214,6 +480,7 @@ async def create_workspace(create_workspace_body: CreateWorkspace):
         })
 
     if already_exist is not None and already_exist.workspaceName is not None:
+        await db.disconnect()
         return {
             "message": "backend.errors.body.already_exist",
             "status": 409,
@@ -265,6 +532,7 @@ async def create_workspace(create_workspace_body: CreateWorkspace):
         }
     )
 
+    await db.disconnect()
     return {
         "message": "backend.success.workspace.created",
         "status": 200,
@@ -280,67 +548,67 @@ async def create_workspace(create_workspace_body: CreateWorkspace):
 
 @userRouter.get("/user/get/workspace", tags=["user"])
 async def get_workspace(get_workspace_body: GetWorkspace):
-    db = Prisma()
 
-    await db.connect()
+    if get_workspace_body.workspaceId is not None and get_workspace_body.userId is not None:
+        return {
+            "message": "backend.errors.body.conflicting_parameters",
+            "status": 400
+        }
 
-    if not get_workspace_body.workspaceId:
+    if get_workspace_body.workspaceId is None and get_workspace_body.userId is None:
         return {
             "message": "backend.errors.body.prop_missing",
-            "status": 500
+            "status": 400
         }
 
-    workspace = await db.workspaces.find_unique(
-        where={
-            "id": get_workspace_body.workspaceId
-        }
-    )
-
-    if workspace is None:
-        return {
-            "message": "backend.success.workspace.not_exist",
-            "status": 500,
-        }
-
-    return {
-        "message": "backend.success.workspace.found",
-        "status": 200,
-        "workspace": {
-            "id": workspace.id,
-            "identify": workspace.identify,
-            "kpi": workspace.kpi,
-            "forms": workspace.forms,
-            "messages": workspace.messages,
-        },
-    }
-
-
-@userRouter.get("/user/get/workspaces", tags=["user"])
-async def get_workspaces(get_workspace_body: GetWorkspaces):
     db = Prisma()
-
     await db.connect()
 
-    if not get_workspace_body.userId:
+    if get_workspace_body.workspaceId:
+        workspace = await db.workspaces.find_unique(
+            where={"id": get_workspace_body.workspaceId}
+        )
+        await db.disconnect()
+
+        if not workspace:
+            return {
+                "message": "backend.success.workspace.not_exist",
+                "status": 404
+            }
+
+        return {
+            "message": "backend.success.workspace.found",
+            "status": 200,
+            "workspace": {
+                "id": workspace.id,
+                "identify": workspace.identify,
+                "kpi": workspace.kpi,
+                "forms": workspace.forms,
+                "messages": workspace.messages,
+            }
+        }
+
+    elif get_workspace_body.userId:
+        workspaces = await db.workspaces.find_many(
+            where={"userId": get_workspace_body.userId}
+        )
+        await db.disconnect()
+
+        if not workspaces:
+            return {
+                "message": "backend.success.workspace.not_exist",
+                "status": 404,
+            }
+
+        return {
+            "message": "backend.success.workspace.found",
+            "status": 200,
+            "workspacesList": workspaces
+        }
+
+    else:
+        await db.disconnect()
         return {
             "message": "backend.errors.body.prop_missing",
-            "status": 500
+            "status": 400
         }
-
-    workspaces = await db.workspaces.find_many(
-        where={
-            "userId": get_workspace_body.userId
-        }
-    )
-
-    if not workspaces:
-        return {
-            "message": "backend.success.workspace.not_exist",
-            "status": 500,
-        }
-
-    return {
-        "message": "backend.success.workspace.found",
-        "workspacesList": workspaces,
-        "status": 200,
-    }
