@@ -292,6 +292,17 @@ async def delete_workspace(deleteWorkspace: DeleteWorkspace):
         Quick comment here, when we delete a workspace
         we should update the KPIs since this affects
         analytics
+
+        In other hands we never will delete a form
+        before 30 days or almost 15 days because
+        isn't only deleting a Form it's deleting
+        information, KPIs, etc — something serious.
+
+        max_messages -> will be a user config
+
+        The message functionality will be more complex
+        than this, so I prefer to create a handler for it
+        like a generic one.
     """
 
     if not deleteWorkspace.workspaceId:
@@ -304,9 +315,7 @@ async def delete_workspace(deleteWorkspace: DeleteWorkspace):
     await db.connect()
 
     workspace = await db.workspaces.find_first(
-        where={
-            "id": deleteWorkspace.workspaceId
-        }
+        where={"id": deleteWorkspace.workspaceId}
     )
 
     if not workspace:
@@ -316,15 +325,34 @@ async def delete_workspace(deleteWorkspace: DeleteWorkspace):
             "status": 500,
         }
 
-    await db.workspaces.delete(
-        where={
-            "id": deleteWorkspace.workspaceId
+    existing_messages = workspace.messages if workspace.messages else []
+
+    max_messages = 10
+
+    new_message = {
+        "id": len(existing_messages),
+        "type": "alert",
+        "userProfileImage": "",
+        "msg": "backend.alert.workspace.owner.delete_workspace",
+        "date": datetime.now()
+    }
+
+    updated_messages = existing_messages + [new_message]
+
+    if len(updated_messages) > max_messages:
+        updated_messages = updated_messages[-max_messages:]
+
+    await db.workspaces.update(
+        where={"id": deleteWorkspace.workspaceId},
+        data={
+            "prepareToDelete": True,
+            "messages": json.dumps(updated_messages)
         }
     )
 
     await db.disconnect()
     return {
-        "message": "backend.success.workspace.delete",
+        "message": "backend.success.workspace.prepared_to_be_deleted",
         "status": 200,
     }
 

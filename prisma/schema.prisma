@@ -31,15 +31,16 @@ model Core {
 }
 
 model Workspaces {
-  id            String            @id @unique @default(uuid())
-  workspaceName String            @default("")
-  identify      Json              @default("{}")
-  kpi           Json              @default("[{}]")
-  forms         Json              @default("[{}]")
-  messages      Json              @default("[{}]")
-  User          User              @relation(fields: [userId], references: [id])
-  userId        String            @default("")
-  members       WorkspaceAccess[]
+  id              String            @id @unique @default(uuid())
+  workspaceName   String            @default("")
+  identify        Json              @default("{}")
+  kpi             Json              @default("[{}]")
+  forms           Json              @default("[{}]")
+  messages        Json              @default("[{}]")
+  User            User              @relation(fields: [userId], references: [id])
+  userId          String            @default("")
+  prepareToDelete Boolean           @default(false)
+  members         WorkspaceAccess[]
 }
 
 model WorkspaceAccess {
