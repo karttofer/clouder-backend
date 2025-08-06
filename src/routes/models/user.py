@@ -15,61 +15,12 @@ class EditModel(BaseModel):
     password: Optional[str] = None
 
 
-# Create workspace - Identify model
-class IdentifyWorkspaceModel(BaseModel):
-    workspaceCreateAt: datetime = Field(default_factory=datetime.utcnow)
-    workspaceModifiedAt: datetime = Field(default_factory=datetime.utcnow)
-    whoModified: str = ''
-    whoCreated: str = ''
-
-
-# Create workspace - KPi workspace model
-class KpiWorkspaceModel(BaseModel):
-    workspaceCreateAt: datetime = Field(default_factory=datetime.utcnow)
-    workspaceModifiedAt: datetime = Field(default_factory=datetime.utcnow)
-    whoModified: str = ''
-    whoCreated: str = ''
-
-
-class ThemeSelectedModel(BaseModel):
-    type: str = 'default'
-    index: int = 0
-
-
-class ThemesModel(BaseModel):
-    # We need to type this one
-    # Default theme will be in the Core column with default themes
-    default: List[Any] = []
-
-    # Custom is empty since it's for creation
-    custom: List[Any] = []
-
-
-class FormThemeModel(BaseModel):
-    themeSelected: ThemeSelectedModel = ThemeSelectedModel()
-    themes: ThemesModel = ThemesModel()
-
-    # Now, this one is important since, when
-    # The user selects a theme, we need to save the whole object config
-    selectedThemeStyles: Dict[str, Any] = {}
-
-
-class FormModel(BaseModel):
-    projectName: str = ''
-    lastSaved: str = ''
-    history: List[str] = []
-    formFields: List[str] = ['form_group']
-    parentFieldIndex: int = 0
-    childFieldIndex: Optional[int] = None
-    historyIndexNav: int = 0
-    formTheme: FormThemeModel = FormThemeModel()
-
-
 class ModifyWorkspace(BaseModel):
+    workspaceId: str
+    whoModify: str = ""
     workspaceName: str = ""
-    identify: IdentifyWorkspaceModel = IdentifyWorkspaceModel()
-    kpi: List[KpiWorkspaceModel] = []
-    forms: List[FormModel] = [FormModel()]
+    forms: List[Dict[str, Any]] = Field(default_factory=lambda: [{}])
+    messages: List[Dict[str, Any]] = Field(default_factory=lambda: [{}])
 
 
 class CreateWorkspace(BaseModel):
@@ -91,6 +42,7 @@ class GiveWorkspaceAccess(BaseModel):
     userId: str
     workspaceId: str
     roleId: str
+    permissionsId: str
 
 
 class GetWorkspaceByAccess(BaseModel):

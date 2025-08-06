@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, File, UploadFile
 from prisma import Prisma
 
 # Methods
-from src.routes.helpers.methods import is_int_value, is_valid_name
+from src.routes.helpers.methods import is_invalid_data, is_int_value, is_valid_name
 
 # Models
 from src.routes.models.user import RoleByValue, GetPermissionsModel, PermissionsModel, DeleteInviteWorkspace, GetWorkspaceByAccess, RoleModel, GiveWorkspaceAccess, DeleteWorkspace, GetWorkspace, UserModel, EditModel, ModifyWorkspace, CreateWorkspace
@@ -349,7 +349,7 @@ async def delete_give_access_workspace(delete_workspaces_by_access: DeleteInvite
     if not exist_workspace_invite:
         await db.disconnect()
         return {
-            "message": "backend.success.workspace.access.not_exist",
+            "message": "backend.success.workspace.access.not_found",
             "status": 404
         }
 
@@ -359,10 +359,97 @@ async def delete_give_access_workspace(delete_workspaces_by_access: DeleteInvite
         "status": 200
     }
 
+"""
+Frontend can send us a complete object no need to be a JSON, I need to test this
+I don't want FE to transform between json and object all the time, I prefer this
+to be controlled by BE
+
+In other hands, should we allow this endpoint to edit Kpis? I think this is a little
+bit more complex.
+
+In other hands, forms and messages need to have something inside of the objects to be
+a valid update.
+
+"""
+
 
 @userRouter.put("/user/put/workspace", tags=["user"])
 async def modify_workspace(modifyWorkspace: ModifyWorkspace):
-    return
+
+    if not modifyWorkspace.workspaceId or not modifyWorkspace.whoModify:
+        return {
+            "message": "backend.errors.body.prop_missing",
+            "status": 400
+        }
+
+    if is_invalid_data(modifyWorkspace.forms) and is_invalid_data(modifyWorkspace.messages):
+        return {
+            "message": "backend.errors.body.optional_parameter_has_invalid_data",
+            "status": 400
+        }
+
+    db = Prisma()
+    await db.connect()
+    now = datetime.now().isoformat()
+
+    workspace_exist = await db.workspaces.find_unique(
+        where={
+            "id": modifyWorkspace.workspaceId
+        }
+    )
+
+    if not workspace_exist:
+        return {
+            "message": "backend.errors.workspaces.not_found",
+            "status": 500
+        }
+
+    update_data = {}
+
+    if modifyWorkspace.whoModify:
+        updated_identify = json.dumps({
+            **workspace_exist.identify,
+            "whoModified": modifyWorkspace.whoModify,
+            "workspaceModifiedAt": now
+        })
+        update_data["identify"] = updated_identify
+
+    if not is_invalid_data(modifyWorkspace.forms):
+        update_data["forms"] = json.dumps(modifyWorkspace.forms)
+
+    if not is_invalid_data(modifyWorkspace.messages):
+        update_data["messages"] = json.dumps(modifyWorkspace.messages)
+
+    if not update_data:
+        return {"message": "No valid fields to update."}
+
+    await db.workspaces.update(
+        where={
+            "id": modifyWorkspace.workspaceId
+        },
+        data={
+            **update_data
+        }
+
+    )
+
+    edited_workspace = await db.workspaces.find_unique(
+        where={
+            "id": modifyWorkspace.workspaceId
+        }
+    )
+
+    return {
+        "message": "backend.success.workspace.updated",
+        "status": 200,
+        "workspaceEdited": {
+            "workspaceName": edited_workspace.workspaceName,
+            "identify": edited_workspace.identify,
+            "kpi": edited_workspace.kpi,
+            "forms": edited_workspace.forms,
+            "messages": edited_workspace.messages
+        }
+    }
 
 
 """
@@ -420,10 +507,9 @@ async def get_give_access_workspace(get_workspaces_by_access: GetWorkspaceByAcce
         }
 
 
-# TODO - Add permissions here, we need to fill every invite with the permission type
 @userRouter.post("/user/create/give/access/workspace", tags=["user"])
 async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
-    if not give_workspace_access.workspaceId or not give_workspace_access.userId or not give_workspace_access.roleId:
+    if not give_workspace_access.permissionsId or not give_workspace_access.workspaceId or not give_workspace_access.userId or not give_workspace_access.roleId:
         return {
             "message": "backend.errors.body.prop_missing",
             "status": 500
@@ -451,7 +537,8 @@ async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
         data={
             "workspaceId": give_workspace_access.workspaceId,
             "role": give_workspace_access.roleId,
-            "userId": give_workspace_access.userId
+            "userId": give_workspace_access.userId,
+            "permissionsId": give_workspace_access.permissionsId
         }
     )
 

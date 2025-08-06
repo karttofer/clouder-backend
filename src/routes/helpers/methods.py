@@ -1,6 +1,7 @@
 # Deps
 import random
 import re
+from typing import List, Dict
 
 
 def generate_4_digit_pin():
@@ -22,3 +23,7 @@ def is_valid_name(strName):
 
 def is_int_value(value):
     return isinstance(value, int)
+
+
+def is_invalid_data(value: List[Dict]) -> bool:
+    return value == [{}] or not value
