@@ -18,7 +18,7 @@ SENDER_API_KEY=<email_sender_api> - SMTP key value
 You must follow these steps before starting the Uvicorn command. If you don't establish the Prisma connections first, the app will throw an error.
 ```shell
 # Before create the enviroment for python
-1. python3 -m venv venv
+1. python3 -m venv venv // py -3.11 -m venv venv
 2. source venv/bin/activate
 
 # After create the enviroment for python

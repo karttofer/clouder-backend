@@ -11,7 +11,7 @@ from google.auth import jwt
 from prisma.errors import UniqueViolationError
 
 # Helpers
-from src.routes.helpers.configs import confirm_email_message
+from src.routes.helpers.emailConfigs import confirm_email_message
 from src.routes.helpers.emailSender import send_email
 from src.routes.helpers.methods import generate_4_digit_pin
 
