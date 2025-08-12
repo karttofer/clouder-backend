@@ -11,8 +11,7 @@ from google.auth import jwt
 from prisma.errors import UniqueViolationError
 
 # Helpers
-from src.routes.helpers.emailConfigs import confirm_email_message
-from src.routes.helpers.emailSender import send_email
+from src.routes.helpers.email.emailSender import send_email
 from src.routes.helpers.methods import generate_4_digit_pin
 
 # Models
@@ -234,18 +233,31 @@ async def read_user(magicLinkRestBody: SendMagicLinkModel):
         pin = generate_4_digit_pin()
 
         if magicLinkRestBody.verificationType == "confirm-email":
-            email_subject_body = confirm_email_message(pin)
+            el = ''
         else:
             raise HTTPException(
                 status_code=400, detail="Invalid verification type")
 
         try:
-            await db.secretpins.create(data={"user_id": user.id, "pin": pin})
+            # await db.secretpins.create(data={"user_id": user.id, "pin": pin})
 
             send_email(
-                magicLinkRestBody.email,
-                email_subject_body["subject"],
-                email_subject_body["body"],
+                recipient_email="jhornancolina@gmail.com",
+                subject="✅ Pedido confirmado #123",
+                template_name="base.html",
+                titulo="Confirmación de pedido",
+                company_name="Mi Empresa S.A.",
+                moneda="USD",
+                cta_url="https://example.com/pedidos/123",
+                cliente={"nombre": "Ana"},
+                pedido={
+                    "id": 123,
+                    "items": [
+                        {"nombre": "Camiseta", "precio": 20.0},
+                        {"nombre": "Gorra", "precio": 10.0}
+                    ],
+                    "total": 30.0
+                }
             )
         except UniqueViolationError:
             return {

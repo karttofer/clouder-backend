@@ -19,7 +19,7 @@ You must follow these steps before starting the Uvicorn command. If you don't es
 ```shell
 # Before create the enviroment for python
 1. python3 -m venv venv // py -3.11 -m venv venv
-2. source venv/bin/activate
+2. source venv/bin/activate // venv\Scripts\activate
 
 # After create the enviroment for python
 1. pip install -r requirements.txt 
