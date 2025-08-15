@@ -18,7 +18,7 @@ SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = int(os.getenv("SMTP_PORT"))
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
-ASSETS_DIR = Path(__file__).resolve().parent / "assets"  # pon aquí tus PNG
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 
 env = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),
@@ -44,7 +44,7 @@ def _attach_image(message: MIMEMultipart, path: Path, cid_name: str) -> str:
     """
     with open(path, "rb") as f:
         img = MIMEImage(f.read())
-    cid = make_msgid(domain="candhr.local")[1:-1]  # quita < >
+    cid = make_msgid(domain="candhr.local")[1:-1]
     img.add_header("Content-ID", f"<{cid}>")
     img.add_header("Content-Disposition", "inline", filename=path.name)
     message.attach(img)

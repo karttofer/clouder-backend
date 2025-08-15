@@ -41,7 +41,6 @@ class DeleteWorkspace(BaseModel):
 class GiveWorkspaceAccess(BaseModel):
     userId: str
     workspaceId: str
-    roleId: str
     permissionsId: str
 
 
@@ -51,7 +50,7 @@ class GetWorkspaceByAccess(BaseModel):
 
 
 class DeleteInviteWorkspace(BaseModel):
-    workspaceId: str
+    workspaceAccessId: str
 
 
 class RoleModel(BaseModel):

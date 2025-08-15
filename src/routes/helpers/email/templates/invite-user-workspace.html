@@ -69,6 +69,22 @@
       max-width: 120px;
     }
 
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      background-color: #8B5CF6;
+      color: #FFFFFF;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 16px;
+      line-height: 24px;
+    }
+
+    .btn:hover {
+      background-color: #7C3AED;
+    }
+
     /* Dark mode */
     @media (prefers-color-scheme: dark) {
       .bg {
@@ -105,7 +121,14 @@
         color: #EBD9F0 !important;
       }
 
+      .btn {
+        background-color: #A78BFA !important;
+        color: #0B0C10 !important;
+      }
 
+      .btn:hover {
+        background-color: #8B5CF6 !important;
+      }
 
       .logo-dark,
       .wordmark-dark {
@@ -167,7 +190,7 @@
             <td style="padding:0 24px;">
               <h1 class="txt"
                 style="margin:0;font:700 24px/32px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1F2328;">
-                Confirm your email address
+                You've been invited to a workspace!
               </h1>
             </td>
           </tr>
@@ -177,29 +200,35 @@
             <td style="padding:12px 24px 0;">
               <p class="txt"
                 style="margin:0;font:400 16px/24px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1F2328;">
-                Your confirmation code is below; enter it in your open browser window and we’ll help you get signed in.
+                <strong>{{inviter_name}}</strong> has invited you to join the workspace <strong>{{workspace_name}}</strong>.
               </p>
             </td>
           </tr>
 
-          <!-- Code card -->
+          <!-- Description -->
           <tr>
-            <td style="padding:16px 24px 0;">
+            <td style="padding:12px 24px 0;">
+              <p class="txt"
+                style="margin:0;font:400 16px/24px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1F2328;">
+                You can click the button below to be redirected to the workspace URL and start collaborating.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Button card -->
+          <tr>
+            <td style="padding:24px 24px 0;">
               <table role="presentation" width="100%" class="card" bgcolor="#FFFFFF"
                 style="background-color:#FFFFFF;border-radius:12px;border:1px solid #E5E7EB;">
                 <tr>
-                  <td align="center" bgcolor="#FFFFFF" style="padding:24px;background-color:#FFFFFF;">
+                  <td align="center" bgcolor="#FFFFFF" style="padding:32px;background-color:#FFFFFF;">
+                    <a href="{{workspace_url}}" class="btn" target="_blank" rel="noopener"
+                      style="display:inline-block;padding:12px 24px;background-color:#8B5CF6;color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;line-height:24px;">
+                      Join Workspace
+                    </a>
                     <p class="muted"
-                      style="margin:0 0 8px 0;font:400 12px/16px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#6B7280;text-transform:uppercase;letter-spacing:.02em;">
-                      Your code
-                    </p>
-                    <div class="pin"
-                      style="display:inline-block;margin:0;padding:14px 18px;border-radius:10px;background-color:#F3E8F5;color:#611F69;font:700 28px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;letter-spacing:.3em;">
-                      {{validation_code}}
-                    </div>
-                    <p class="muted"
-                      style="margin:12px 0 0 0;font:400 14px/20px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#6B7280;">
-                      This code expires in <strong>{{pin_minutes_expiration}} minutes</strong>.
+                      style="margin:16px 0 0 0;font:400 14px/20px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#6B7280;">
+                      If the button doesn't work, please contact the workspace administrator.
                     </p>
                   </td>
                 </tr>
@@ -207,12 +236,12 @@
             </td>
           </tr>
 
-          <!-- Ignore note -->
+          <!-- Additional info -->
           <tr>
             <td style="padding:16px 24px 0;">
               <p class="muted"
                 style="margin:0;font:400 14px/22px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#6B7280;">
-                If you didn’t request this email, you can safely ignore it.
+                If you weren't expecting this invitation, you can safely ignore this email.
               </p>
             </td>
           </tr>
