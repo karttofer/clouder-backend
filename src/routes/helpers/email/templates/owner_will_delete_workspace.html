@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>{{subject}}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <style>
+    :root {
+      color-scheme: light dark;
+      supported-color-schemes: light dark;
+    }
+
+    body,
+    table,
+    td {
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    img {
+      border: 0;
+      outline: 0;
+      text-decoration: none;
+      display: block;
+      line-height: 100%;
+    }
+
+    table {
+      height: 100%;
+      border-collapse: collapse;
+    }
+
+    table[role="presentation-content"] {
+      height: 63%;
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    .logo-light,
+    .logo-dark {
+      height: 100%;
+      width: 100%;
+      max-width: 190px;
+    }
+
+    .wordmark-light{
+      mix-blend-mode: difference;
+    }
+
+    /* .logo-light,
+    .wordmark-light {
+      display: none !important;
+    } */
+
+    .wordmark-dark,
+    .wordmark-light {
+      height: 100%;
+      width: 100%;
+      max-width: 120px;
+    }
+
+    /* Dark mode */
+    @media (prefers-color-scheme: dark) {
+      .bg {
+        background-color: #0B0C10 !important;
+      }
+
+      .wrap {
+        background-color: #0B0C10 !important;
+      }
+
+      .card {
+        background-color: #1C1F24 !important;
+        border-color: #2B2F36 !important;
+      }
+
+      .txt {
+        color: #E6E7EB !important;
+      }
+
+      .muted {
+        color: #A0A6B0 !important;
+      }
+
+      .link {
+        color: #4FB3F6 !important;
+      }
+
+      .divider {
+        border-top-color: #2B2F36 !important;
+      }
+
+      .pin {
+        background-color: #2A2330 !important;
+        color: #EBD9F0 !important;
+      }
+
+      .warning {
+        background-color: #2A2330 !important;
+        color: #EBD9F0 !important;
+        border-color: #EBD9F0 !important;
+      }
+
+
+
+      .logo-dark,
+      .wordmark-dark {
+        display: block !important;
+      }
+
+      .icon {
+        filter: none !important;
+      }
+    }
+
+    /* Outlook.com dark-mode fallback (OGSC) */
+    [data-ogsc] .bg,
+    [data-ogsc] .wrap {
+      background: #0B0C10 !important;
+    }
+
+    [data-ogsc] .card {
+      background: #1C1F24 !important;
+      border-color: #2B2F36 !important;
+    }
+
+    [data-ogsc] .txt {
+      color: #E6E7EB !important;
+    }
+
+    [data-ogsc] .muted {
+      color: #A0A6B0 !important;
+    }
+  </style>
+</head>
+
+<body style="margin:0;background-color:#F4F5F7;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="#F4F5F7" class="bg"
+    style="background-color:#F4F5F7;">
+    <tr>
+      <td align="center">
+        <table role="presentation-content" width="600" cellspacing="0" cellpadding="0" class="wrap"
+          style="width:100%;max-width:600px;background-color:#F4F5F7;">
+          <!-- Header logo -->
+          <tr>
+            <td style="padding:16px 24px;">
+              <table role="presentation" width="100%">
+                <tr>
+                  <td align="center" style="line-height:0;">
+                    <!-- <img class="logo-light" src="{{logo_light_cid}}" width="120" height="36" alt="Candhr"> -->
+                    <!--[if !mso]><!-->
+                    <!-- <img class="logo-dark" src="{{logo_dark_cid}}" width="120" height="36" alt="Candhr"> -->
+                    <!--<![endif]-->
+                    <img class="wordmark-light" src="{{wordmark_light_cid}}" width="100" height="28" alt="Candhr">
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Title -->
+          <tr>
+            <td style="padding:0 24px;">
+              <h1 class="txt"
+                style="margin:0;font:700 24px/32px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1F2328;">
+                <strong>Notice</strong>
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Intro -->
+          <tr>
+            <td style="padding:12px 24px 0;">
+              <p class="txt"
+                style="margin:0;font:400 16px/24px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1F2328;">
+                The owner <strong>{{owner_name}}</strong> of the workspace <strong>"{{workspace_name}}"</strong> has decided to delete the workspace.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Warning card -->
+          <tr>
+            <td style="padding:16px 24px 0;">
+              <table role="presentation" width="100%" class="card" bgcolor="#FFFFFF"
+                style="background-color:#FFFFFF;border-radius:12px;border:1px solid #E5E7EB;">
+                <tr>
+                  <td align="center" bgcolor="#FFFFFF" style="padding:24px;background-color:#FFFFFF;">
+                    <p class="muted"
+                      style="margin:0 0 16px 0;font:400 12px/16px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#6B7280;text-transform:uppercase;letter-spacing:.02em;">
+                      Important Information
+                    </p>
+                                                                                   <p class="txt"
+                        style="margin:0 0 16px 0;font:400 16px/24px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0F172A;">
+                        You will lose access immediately, but the workspace will only be permanently deleted after <strong>30 days</strong>.
+                      </p>
+                    <p class="muted"
+                      style="margin:0;font:400 14px/20px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#6B7280;">
+                      If you have any concerns, please contact the workspace owner.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Contact info -->
+          <tr>
+            <td style="padding:16px 24px 0;">
+              <p class="muted"
+                style="margin:0;font:400 14px/22px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#6B7280;">
+                If you have any complaints, please contact the workspace owner directly.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer brand + social -->
+          <tr>
+            <td style="padding:24px 24px 0;">
+              <table role="presentation" width="100%">
+                <tr>
+                  <td align="left" style="width:66%;line-height:0;">
+                    <!-- Wordmark light/dark -->
+                    <!-- <img class="wordmark-light" src="{{wordmark_light_cid}}" width="100" height="28" alt="Candhr"> -->
+                    <img class="wordmark-light" src="{{wordmark_light_cid}}" width="100" height="28" alt="Candhr">
+
+                  </td>
+                  <td align="right">
+                    <table role="presentation">
+                      <tr>
+                        <td width="8"></td>
+                        <td>
+                          <a href="{{website_url}}" target="_blank" rel="noopener">
+                            <img class="icon" src="{{icon_globe_cid}}" width="24" height="24" alt="Website"
+                              style="display:block;">
+                          </a>
+                        </td>
+                        <td width="8"></td>
+                        <td>
+                          <a href="{{linkedin_url}}" target="_blank" rel="noopener">
+                            <img class="icon" src="{{icon_linkedin_cid}}" width="24" height="24" alt="LinkedIn"
+                              style="display:block;">
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding:16px 24px 0;">
+              <div class="divider" style="border-top:1px solid #E5E7EB;height:1px;line-height:1px;font-size:0;"></div>
+            </td>
+          </tr>
+
+          <!-- Footer links -->
+          <tr>
+            <td style="padding:16px 24px 24px;">
+              <p class="txt"
+                style="margin:0;font:400 14px/20px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1F2328;">
+                <a class="link" href="{{policies_url}}" target="_blank" rel="noopener"
+                  style="color:#1264A3;">Policies</a>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+                <a class="link" href="{{help_url}}" target="_blank" rel="noopener" style="color:#1264A3;">Help
+                  center</a>
+              </p>
+              <p class="muted"
+                style="margin:12px 0 0 0;font:400 12px/18px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#6B7280;">
+                ©{{year}} Candhr<br><br>
+                All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+
+</html>

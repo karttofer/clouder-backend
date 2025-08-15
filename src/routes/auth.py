@@ -1,12 +1,12 @@
 # Deps
+import datetime
 import asyncio
 from typing import Annotated
 from urllib import request
 
 from fastapi import APIRouter, HTTPException, status
 from prisma import Prisma
-import bcrypt
-import base64
+
 from google.auth import jwt
 from prisma.errors import UniqueViolationError
 
@@ -23,7 +23,7 @@ from src.routes.models.auth import (
     SecretPINVerification,
     RegisterGoogleUser,
     IsLoggedUser,
-    ChangeIsLogged
+    ChangeIsLogged,
 )
 
 authRouter = APIRouter()
@@ -72,7 +72,7 @@ async def read_users(loginBody: LoginModel):
             "messageType": "success",
             "userInfo": {
                 "registration_completed": user.registration_completed,
-                "email": user.email
+                "email": user.email,
             },
             "status": 200,
         }
@@ -105,18 +105,13 @@ async def read_user(regisBody: RegisterModel):
             "nickname": regisBody.name,
             "email": regisBody.email,
             "registration_completed": False,
-            "roleId": regisBody.roleId
+            "roleId": regisBody.roleId,
         }
     )
 
     user_created = await db.user.find_unique(where={"email": regisBody.email})
 
-    await db.loggedusers.create(
-        data={
-            "user_id": user_created.id,
-            "isLogged": False
-        }
-    )
+    await db.loggedusers.create(data={"user_id": user_created.id, "isLogged": False})
 
     return {
         "message": "backend.user_created",
@@ -165,7 +160,6 @@ async def is_user_logged(isLogged: IsLoggedUser):
         "messageType": "warning",
         "isLogged": True,
         "status": 200,
-
     }
 
 
@@ -185,16 +179,15 @@ async def set_user_logged(isLoggedProps: ChangeIsLogged):
         }
 
     await db.loggedusers.update(
-        where={
-            "user_id": user.id
-        },
-        data={
-            "isLogged": isLoggedProps.isLogged
-        }
+        where={"user_id": user.id}, data={"isLogged": isLoggedProps.isLogged}
     )
     await db.disconnect()
     return {
-        "message": "backend.user_logged_successfully" if isLoggedProps.isLogged == True else "backend.user_logout_successfully",
+        "message": (
+            "backend.user_logged_successfully"
+            if isLoggedProps.isLogged == True
+            else "backend.user_logout_successfully"
+        ),
         "isLogged": isLoggedProps.isLogged,
         "messageType": "success",
         "status": 200,
@@ -205,64 +198,74 @@ async def set_user_logged(isLoggedProps: ChangeIsLogged):
 # If frontend send this request twice, supabase sometimes does not have the time
 # to process the first request, and the second request will throw a constraint error in
 # user_id - UniqueViolationError <- avoids that
+# TODO - We need to change this file isnt working for the new features or way to create messages
 @authRouter.post("/auth/magic-link", tags=["auth"])
 async def read_user(magicLinkRestBody: SendMagicLinkModel):
     db = Prisma()
     await db.connect()
 
+    user_data = {}
     try:
         user = await db.user.find_unique(where={"email": magicLinkRestBody.email})
-        print("User found:", user)
 
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
         loggedUser = await db.loggedusers.find_unique(where={"user_id": user.id})
+        secret_pin_exist = await db.secretpins.find_unique(where={"user_id": user.id})
+
+        if secret_pin_exist:
+            await db.disconnect()
+            return {
+                "message":  f"A pin has already been sent to {magicLinkRestBody.email}. Please check your inbox.",
+                "code": 200,
+            }
 
         if user.registration_completed and loggedUser and loggedUser.isLogged:
+            await db.disconnect()
             return {
                 "message": "User is already verified and logged",
                 "redirect": True,
                 "code": 200,
             }
 
-        if magicLinkRestBody.verificationType is None:
-            raise HTTPException(
-                status_code=400, detail="Verification type is required")
+        if not magicLinkRestBody.verificationType:
+            await db.disconnect()
+            return HTTPException(status_code=400, detail="Verification type is required")
 
         pin = generate_4_digit_pin()
 
         if magicLinkRestBody.verificationType == "confirm-email":
-            el = ''
+            user_data["email"] = user.email
+            user_data["subject"] = "Ajoooy, welcome to the platform"
+            user_data["template_name"] = "verifyEmail.html"
         else:
-            raise HTTPException(
-                status_code=400, detail="Invalid verification type")
+            await db.disconnect()
+            raise HTTPException(status_code=400, detail="Invalid verification type")
 
         try:
-            # await db.secretpins.create(data={"user_id": user.id, "pin": pin})
+            now = datetime.datetime.now()
+            year = now.strftime("%Y")
 
             send_email(
-                recipient_email="jhornancolina@gmail.com",
-                subject="✅ Pedido confirmado #123",
-                template_name="base.html",
-                titulo="Confirmación de pedido",
-                company_name="Mi Empresa S.A.",
-                moneda="USD",
-                cta_url="https://example.com/pedidos/123",
-                cliente={"nombre": "Ana"},
-                pedido={
-                    "id": 123,
-                    "items": [
-                        {"nombre": "Camiseta", "precio": 20.0},
-                        {"nombre": "Gorra", "precio": 10.0}
-                    ],
-                    "total": 30.0
-                }
+                recipient_email=user_data["email"],
+                subject=user_data["subject"],
+                template_name=user_data["template_name"],
+                website_url="www.youtube.com",
+                linkedin_url="www.google.com",
+                policies_url="www.google.com",
+                help_url="www.youtube.com",
+                year=year,
+                pin_minutes_expiration=30,
+                validation_code=pin,
             )
+
+            await db.secretpins.create(data={"user_id": user.id, "pin": pin})
+
         except UniqueViolationError:
             return {
-                "message": f"A pin has already been sent to {magicLinkRestBody.email}. Please check your inbox.",
-                "code": 200,
+                "message": "An error occurred while sending the pin",
+                "code": 500,
             }
 
         asyncio.create_task(delete_pin_after_delay(user.id, 600))
@@ -305,14 +308,7 @@ async def read_user(verificationPin: SecretPINVerification):
             where={"user_id": user.id, "pin": verificationPin.userPin}
         )
 
-        await db.loggedusers.update(
-            where={
-                "user_id": user.id
-            },
-            data={
-                "isLogged": True
-            }
-        )
+        await db.loggedusers.update(where={"user_id": user.id}, data={"isLogged": True})
         await db.disconnect()
         return {
             "message": "PIN is valid, user can continue",
@@ -360,16 +356,15 @@ async def googleAuth(googleUser: RegisterGoogleUser):
                     "email": googleUser.email,
                     "user_image": googleUser.picture,
                     "user_type": "company",
-                    "registration_completed": True
+                    "registration_completed": True,
                 }
             )
-            just_created_user = await db.user.find_unique(where={"email": googleUser.email})
+            just_created_user = await db.user.find_unique(
+                where={"email": googleUser.email}
+            )
 
             await db.loggedusers.create(
-                data={
-                    "user_id": just_created_user.id,
-                    "isLogged": True
-                }
+                data={"user_id": just_created_user.id, "isLogged": True}
             )
             await db.disconnect()
             return {
