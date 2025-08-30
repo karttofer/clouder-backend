@@ -1,8 +1,6 @@
 # Deps
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
-from datetime import datetime
-
 
 class UserModel(BaseModel):
     email: str
@@ -53,17 +51,18 @@ class DeleteInviteWorkspace(BaseModel):
     userInvitesId: str
     hasAccepted: bool = False
 
+class AcceptOrDeniedWorkspaceInvitation(BaseModel):
+    workspaceId: str
+    userInviteId: str
+    permissionId: str
+    hasAccepted: bool = False
 
 class RoleModel(BaseModel):
     roleName: str
-    roleValue: int
-
-# This should be roleType not roleValue
-
+    roleType: int
 
 class RoleByValue(BaseModel):
-    roleValue: int
-
+    roleType: int
 
 class PermissionsModel (BaseModel):
     permissionsType: int

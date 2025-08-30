@@ -16,6 +16,7 @@ from src.routes.models.user import (
     GetPermissionsModel,
     PermissionsModel,
     DeleteInviteWorkspace,
+    AcceptOrDeniedWorkspaceInvitation,
     GetWorkspaceByAccess,
     RoleModel,
     GiveWorkspaceAccess,
@@ -138,7 +139,7 @@ async def create_role(role_body: RoleModel):
     special characters, should we handle this by
     frontend?
     """
-    if not is_valid_name(role_body.roleName) or not is_int_value(role_body.roleValue):
+    if not is_valid_name(role_body.roleName) or not is_int_value(role_body.roleType):
         return {
             "message": "backend.errors.body.prop_missing_or_not_valid",
             "status": 500,
@@ -149,14 +150,14 @@ async def create_role(role_body: RoleModel):
 
     already_role_exist = await db.roles.find_first(
         where={
-            "OR": [{"roleName": role_body.roleName}, {"roleValue": role_body.roleValue}]
+            "OR": [{"roleName": role_body.roleName}, {"roleType": role_body.roleType}]
         }
     )
 
     if already_role_exist:
         if (
             already_role_exist.roleName == role_body.roleName
-            or already_role_exist.roleValue == role_body.roleValue
+            or already_role_exist.roleType == role_body.roleType
         ):
             return {
                 "message": "backend.errors.body.already_exist",
@@ -166,7 +167,7 @@ async def create_role(role_body: RoleModel):
     await db.roles.create(
         data={
             "roleName": role_body.roleName,
-            "roleValue": role_body.roleValue,
+            "roleType": role_body.roleType,
         }
     )
 
@@ -178,7 +179,7 @@ async def create_role(role_body: RoleModel):
 
 @userRouter.delete("/user/delete/role", tags=["user"])
 async def delete_role(role_body: RoleByValue):
-    if not role_body.roleValue:
+    if not role_body.roleType:
         return {
             "message": "backend.errors.body.prop_missing_or_not_valid",
             "status": 500,
@@ -187,7 +188,7 @@ async def delete_role(role_body: RoleByValue):
     db = Prisma()
     await db.connect()
 
-    role_exist = await db.roles.find_unique(where={"roleValue": role_body.roleValue})
+    role_exist = await db.roles.find_unique(where={"roleType": role_body.roleType})
 
     if not role_exist:
         await db.disconnect()
@@ -196,7 +197,7 @@ async def delete_role(role_body: RoleByValue):
             "status": 404,
         }
 
-    await db.roles.delete(where={"roleValue": role_body.roleValue})
+    await db.roles.delete(where={"roleType": role_body.roleType})
     return {
         "message": "backend.success.role.deleted",
         "status": 200,
@@ -587,11 +588,13 @@ async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
     db = Prisma()
     await db.connect()
 
-    get_workspace = await db.workspaces.find_unique(
+    workspace = await db.workspaces.find_unique(
         where={"id": give_workspace_access.workspaceId}
     )
 
     invited_user = await db.user.find_unique(where={"email": give_workspace_access.userEmail})
+
+    inviter_user = await db.user.find_unique(where={"id": get_workspace.userId})
 
     invite_already_created = await db.userinvites.find_unique(
         where={
@@ -620,9 +623,8 @@ async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
             "status": 404,
         }
 
-    get_inviter = await db.user.find_unique(where={"id": get_workspace.userId})
 
-    if not get_inviter:
+    if not inviter_user:
         await db.disconnect()
         return {
             "message": "backend.alert.user.not_exist",
@@ -635,14 +637,6 @@ async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
         }
     )
 
-    workspace_access = await db.workspaceaccess.create(
-        data={
-            "workspaceId": give_workspace_access.workspaceId,
-            "role": invited_user.roleId,
-            "userId": invited_user.id,
-            "permissionsId": give_workspace_access.permissionsId,
-        }
-    )
 
     send_email(
         recipient_email=invited_user.email,
@@ -653,9 +647,9 @@ async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
         policies_url="www.google.com",
         help_url="www.youtube.com",
         year=datetime.now().strftime("%Y"),
-        workspace_url=f"https://candhr.com/workspace?access_id={workspace_access.id}&invite_id={user_invite_created.id}",
+        workspace_url=f"https://candhr.com/workspace?access_id={give_workspace_access.workspaceId}&invite_id={user_invite_created.id}&user_permission={give_workspace_access.permissionsId}",
         workspace_name=get_workspace.workspaceName,
-        inviter_name=get_inviter.nickname,
+        inviter_name=inviter_user.nickname,
     )
 
     await db.disconnect()
@@ -809,43 +803,43 @@ async def get_workspace(get_workspace_body: GetWorkspace):
         await db.disconnect()
         return {"message": "backend.errors.body.prop_missing", "status": 400}
 
-# The user will have two options accept or decline invite if users delcite delete item in invite table if accepte delete
-# delete items in usersinvites table and in workspaceaccess hasAccept to true
-
-
 @userRouter.post("/user/respond/invite/workspace", tags=["user"])
-async def respond_invite_workspace(delete_workspaces_by_access: DeleteInviteWorkspace):
-    if not delete_workspaces_by_access.workspaceAccessId:
+async def respond_invite_workspace(accept_denied_workspace_invitation_body: AcceptOrDeniedWorkspaceInvitation):
+    if not accept_denied_workspace_invitation_body.workspaceId or not accept_denied_workspace_invitation_body.userInviteId or accept_denied_workspace_invitation_body.hasAccepted is None:
         return {"message": "backend.errors.body.prop_missing", "status": 500}
 
     db = Prisma()
     await db.connect()
 
-    workspace_access = await db.workspaceaccess.find_unique(
-        where={"id": delete_workspaces_by_access.workspaceAccessId}
-    )
-
     user_invite = await db.userinvites.find_unique(
-        where={"id": delete_workspaces_by_access.userInvitesId},
+        where={"id": accept_denied_workspace_invitation_body.userInviteId},
     )
 
-    # user invite tiene un campo created_at si tomamos created_at y la fecha actual mayor a 15 dias, elminamos la invitacion y queda
-    # todo invalidado
-
-    
-
-    if not workspace_access or not user_invite:
+    if  not user_invite:
         await db.disconnect()
         return {"message": "backend.success.workspace.invite_access.not_found", "status": 404}
+ 
+    user_invite = user_invite.create_at
+    currDate = datetime.now()
 
-    if delete_workspaces_by_access.hasAccepted:
-        await db.workspaceaccess.update(
-            where={"id": delete_workspaces_by_access.workspaceAccessId},
-            data={"hasAccepted": True}
+    if (currDate - user_invite).days > 30:
+        await db.userinvites.delete(
+            where={"id": accept_denied_workspace_invitation_body.userInviteId},
+        )
+        return {"message": "backend.success.workspace.invite_access.expired", "status": 401}
+
+    if accept_denied_workspace_invitation_body.hasAccepted:
+        await db.workspaceaccess.create(
+            data={
+                "workspaceId": accept_denied_workspace_invitation_body.workspaceId,
+                "roleId": user_invite.roleId,
+                "userId": user_invite.id,
+                "permissionsId": accept_denied_workspace_invitation_body.permissionId,
+            }
         )
 
     await db.userinvites.delete(
-        where={"id": delete_workspaces_by_access.userInvitesId},
+        where={"id": accept_denied_workspace_invitation_body.userInviteId},
     )
 
     await db.disconnect()
