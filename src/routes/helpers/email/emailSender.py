@@ -16,6 +16,7 @@ SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDER_API_KEY = os.getenv("SENDER_API_KEY")
 SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = int(os.getenv("SMTP_PORT"))
+LOGIN_EMAIL = os.getenv("LOGIN_EMAIL")
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
@@ -78,7 +79,7 @@ def send_email(recipient_email: str, subject: str, template_name: str, **context
 
     with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
         server.starttls()
-        server.login(SENDER_EMAIL, SENDER_API_KEY)
+        server.login(LOGIN_EMAIL, SENDER_API_KEY)
         server.sendmail(SENDER_EMAIL, recipient_email, root.as_string())
 
     print(f"Email enviado a {recipient_email}")

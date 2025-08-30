@@ -1,6 +1,8 @@
 # Deps
+import asyncio
 import uuid
 import json
+import concurrent.futures
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, File, UploadFile
 from prisma import Prisma
@@ -160,7 +162,7 @@ async def create_role(role_body: RoleModel):
 
 
 @userRouter.delete("/user/delete/role", tags=["user"])
-async def delete_workspace(role_body: RoleByValue):
+async def delete_role(role_body: RoleByValue):
     if not role_body.roleValue:
         return {
             "message": "backend.errors.body.prop_missing_or_not_valid",
@@ -320,6 +322,9 @@ async def delete_workspace(deleteWorkspace: DeleteWorkspace):
             "status": 500,
         }
 
+    owner_name = await db.user.find_unique(where={"id": workspace.userId})
+
+    print(owner_name)
     existing_messages = workspace.messages if workspace.messages else []
 
     max_messages = 10
@@ -329,7 +334,7 @@ async def delete_workspace(deleteWorkspace: DeleteWorkspace):
         "type": "alert",
         "userProfileImage": "",
         "msg": "backend.alert.workspace.owner.delete_workspace",
-        "date": datetime.now(),
+        "date": datetime.now().isoformat(),
     }
 
     updated_messages = existing_messages + [new_message]
@@ -339,8 +344,43 @@ async def delete_workspace(deleteWorkspace: DeleteWorkspace):
 
     await db.workspaces.update(
         where={"id": deleteWorkspace.workspaceId},
-        data={"prepareToDelete": True, "messages": json.dumps(updated_messages)},
+        data={"prepareToDelete": True,
+              "messages": json.dumps(updated_messages)
+              }
     )
+
+    """
+    Small explanation
+
+    Here we are creating a async task, it means we are getting the users ids by async method
+    this to prevent block
+    """
+    users_with_workspace_access = await db.workspaceaccess.find_many(
+        where={"workspaceId": workspace.id},
+    )
+
+    if users_with_workspace_access is not None and len(users_with_workspace_access):
+        user_tasks = [
+            db.user.find_unique(where={"id": workspace_access.userId})
+            for workspace_access in users_with_workspace_access
+        ]
+
+        users = await asyncio.gather(*user_tasks, return_exceptions=True)
+
+        if len(users):
+            for user in users:
+                send_email(
+                    recipient_email=user.email,
+                    subject="Alert - Workspace will be deleted by owner",
+                    template_name="owner_will_delete_workspace.html",
+                    website_url="www.youtube.com",
+                    linkedin_url="www.google.com",
+                    policies_url="www.google.com",
+                    help_url="www.youtube.com",
+                    year=datetime.now().strftime("%Y"),
+                    owner_name=owner_name.nickname,
+                    workspace_name=workspace.workspaceName,
+                )
 
     await db.disconnect()
     return {
@@ -367,52 +407,8 @@ async def delete_give_access_workspace(
         await db.disconnect()
         return {"message": "backend.success.workspace.access.not_found", "status": 404}
 
-    invited_user = await db.user.find_unique(
-        where={"id": exist_workspace_invite.userId}
-    )
-
-    if not invited_user:
-        await db.disconnect()
-        return {
-            "message": "backend.alert.user.not_exist",
-            "status": 404,
-        }
-
-    workspace = await db.workspaces.find_unique(
-        where={"id": exist_workspace_invite.workspaceId}
-    )
-
-    if not workspace:
-        await db.disconnect()
-        return {
-            "message": "backend.workspace.user.not_exist",
-            "status": 404,
-        }
-
-    owner_name = await db.user.find_unique(where={"id": workspace.userId})
-
-    if not owner_name:
-        await db.disconnect()
-        return {
-            "message": "backend.user.user.not_exist",
-            "status": 404,
-        }
-
     await db.workspaceaccess.delete(
         where={"id": delete_workspaces_by_access.workspaceAccessId}
-    )
-
-    send_email(
-        recipient_email=invited_user.email,
-        subject="Alert - Workspace will be deleted by owner",
-        template_name="owner_will_delete_workspace.html",
-        website_url="www.youtube.com",
-        linkedin_url="www.google.com",
-        policies_url="www.google.com",
-        help_url="www.youtube.com",
-        year=datetime.now().strftime("%Y"),
-        owner_name=owner_name.nickname,
-        workspace_name=workspace.workspaceName,
     )
 
     await db.disconnect()
@@ -552,6 +548,18 @@ async def get_give_access_workspace(get_workspaces_by_access: GetWorkspaceByAcce
         }
 
 
+"""
+We have a limitation here and I don't want to consume a lot of resouces triying to invite someone
+
+1. First, we need to be able to only invite oner person at the time and check oner person at the time
+
+If we allow multiple, and then we check if these people already have an invite, we will need to create
+We will need to create an async loop and that will consume a lot of resources.
+
+For future verions maybe we can think about this, but I think we will need to change from python to nodejs
+"""
+
+
 @userRouter.post("/user/create/give/access/workspace", tags=["user"])
 async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
     if (
@@ -686,7 +694,8 @@ async def create_workspace(create_workspace_body: CreateWorkspace):
                         "value": "0%",
                         "delta": 0,
                     },
-                    {"label": "kpis.dashboard.active_forms", "value": "0", "delta": 0},
+                    {"label": "kpis.dashboard.active_forms",
+                        "value": "0", "delta": 0},
                     {
                         "label": "kpis.dashboard.responses_today",
                         "value": "0",
