@@ -12,12 +12,11 @@ from prisma.errors import UniqueViolationError
 
 # Helpers
 from src.routes.helpers.email.emailSender import send_email
-from src.routes.helpers.methods import generate_4_digit_pin
+from src.routes.helpers.methods import generate_4_digit_pin, delete_pin_after_delay
 
 # Models
 from src.routes.models.auth import (
     RegisterModel,
-    ResetPaswordModel,
     SendMagicLinkModel,
     LoginModel,
     SecretPINVerification,
@@ -27,17 +26,6 @@ from src.routes.models.auth import (
 )
 
 authRouter = APIRouter()
-
-
-# Methods / Helpers
-async def delete_pin_after_delay(user_id: int, delay: int = 600):
-    await asyncio.sleep(delay)
-    db = Prisma()
-    await db.connect()
-    await db.secretpins.delete(where={"user_id": user_id})
-    await db.disconnect()
-    print(f"Pin for user_id {user_id} deleted after {delay} seconds")
-
 
 # Routes
 @authRouter.post("/auth/login", tags=["auth"])
@@ -268,7 +256,7 @@ async def read_user(magicLinkRestBody: SendMagicLinkModel):
                 "code": 500,
             }
 
-        asyncio.create_task(delete_pin_after_delay(user.id, 600))
+        asyncio.create_task(delete_pin_after_delay(Prisma, user.id, 600))
 
         return {
             "message": f"Pin for {magicLinkRestBody.verificationType} was sent to {magicLinkRestBody.email}, please check your email.",

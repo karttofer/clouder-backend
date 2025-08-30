@@ -20,6 +20,7 @@ model User {
   LoggedUsers            LoggedUsers?
   workspaces             Workspaces[]
   workspaceAccess        WorkspaceAccess[]
+  Invites UserInvites[]
   userRole               Roles             @relation(fields: [roleId], references: [id])
   roleId                 String
 }
@@ -53,6 +54,7 @@ model WorkspaceAccess {
   createdAt     DateTime    @default(now())
   permission    Permissions @relation(fields: [permissionsId], references: [id])
   permissionsId String
+  hasAccepted   Boolean     @default(false)
 }
 
 model LoggedUsers {
@@ -81,6 +83,14 @@ model SecretPins {
   user    User   @relation(fields: [user_id], references: [id])
   user_id String @unique @default("")
   pin     Int    @default(0)
+  created_at DateTime @default(now())
+}
+
+model UserInvites {
+  id      String @id @default(uuid())
+  user    User   @relation(fields: [user_id], references: [id])
+  user_id String @unique @default("")
+  created_at DateTime @default(now())
 }
 
 model UserThreads {

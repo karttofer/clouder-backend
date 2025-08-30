@@ -19,12 +19,6 @@ class RegisterModel(BaseModel):
 class RegisterByJWT(BaseModel):
     jwt: str
 
-
-class ResetPaswordModel(BaseModel):
-    user_id: str
-    new_password: str
-
-
 class SendMagicLinkModel(BaseModel):
     email: str
     verificationType: str

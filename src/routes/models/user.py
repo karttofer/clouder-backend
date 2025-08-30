@@ -26,7 +26,6 @@ class ModifyWorkspace(BaseModel):
 class CreateWorkspace(BaseModel):
     workspaceName: str = ""
     userId: str
-    userName: str
 
 
 class GetWorkspace(BaseModel):
@@ -39,7 +38,7 @@ class DeleteWorkspace(BaseModel):
 
 
 class GiveWorkspaceAccess(BaseModel):
-    userId: str
+    userEmail: str
     workspaceId: str
     permissionsId: str
 
@@ -51,6 +50,8 @@ class GetWorkspaceByAccess(BaseModel):
 
 class DeleteInviteWorkspace(BaseModel):
     workspaceAccessId: str
+    userInvitesId: str
+    hasAccepted: bool = False
 
 
 class RoleModel(BaseModel):

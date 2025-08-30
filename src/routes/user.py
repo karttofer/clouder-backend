@@ -52,7 +52,7 @@ async def read_user(userBody: UserModel):
                 "user_exist": False,
                 "code": 404,
             }
-        return {"message": "User Exist", "user_exist": True, "data": user, "code": 200}
+        return {"message": "User Exist", "data": {"user_exist": True, "data": user}, "code": 200}
 
     except Exception as error:
         raise HTTPException(status_code=500, detail=str(error))
@@ -114,6 +114,21 @@ async def read_user(file: UploadFile = File(...)):
 
 
 # ___USER GENERALS___
+
+@userRouter.get("/user/get/roles", tags=["user"])
+async def create_role():
+    db = Prisma()
+    await db.connect()
+
+    roles = await db.roles.find_many()
+
+    await db.disconnect()
+
+    return {
+        "message": "backend.success.roles.found",
+        "status": 200,
+        "data": roles,
+    }
 
 
 @userRouter.post("/user/create/role", tags=["user"])
@@ -486,7 +501,7 @@ async def modify_workspace(modifyWorkspace: ModifyWorkspace):
     return {
         "message": "backend.success.workspace.updated",
         "status": 200,
-        "workspaceEdited": {
+        "data": {
             "workspaceName": edited_workspace.workspaceName,
             "identify": edited_workspace.identify,
             "kpi": edited_workspace.kpi,
@@ -525,7 +540,7 @@ async def get_give_access_workspace(get_workspaces_by_access: GetWorkspaceByAcce
         return {
             "message": "backend.success.workspace.invite.success",
             "status": 202,
-            "invite_workspace": invite_workspace,
+            "data": invite_workspace,
         }
 
     else:
@@ -544,7 +559,7 @@ async def get_give_access_workspace(get_workspaces_by_access: GetWorkspaceByAcce
         return {
             "message": "backend.success.workspace.invite.success",
             "status": 202,
-            "invite_workspace": invite_workspace,
+            "data": invite_workspace,
         }
 
 
@@ -565,25 +580,31 @@ async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
     if (
         not give_workspace_access.permissionsId
         or not give_workspace_access.workspaceId
-        or not give_workspace_access.userId
+        or not give_workspace_access.userEmail
     ):
         return {"message": "backend.errors.body.prop_missing", "status": 500}
 
     db = Prisma()
     await db.connect()
 
-    already_invite_exist = await db.workspaceaccess.find_first(
-        where={
-            "workspaceId": give_workspace_access.workspaceId,
-            "userId": give_workspace_access.userId,
-        }
-    )
-
     get_workspace = await db.workspaces.find_unique(
         where={"id": give_workspace_access.workspaceId}
     )
 
-    invited_user = await db.user.find_unique(where={"id": give_workspace_access.userId})
+    invited_user = await db.user.find_unique(where={"email": give_workspace_access.userEmail})
+
+    invite_already_created = await db.userinvites.find_unique(
+        where={
+            "user_id": invited_user.id,
+        }
+    )
+
+    if invite_already_created is not None:
+        await db.disconnect()
+        return {
+            "message": "backend.alert.workspace.user_already_invited",
+            "status": 409,
+        }
 
     if not get_workspace:
         await db.disconnect()
@@ -599,13 +620,6 @@ async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
             "status": 404,
         }
 
-    if already_invite_exist is not None:
-        await db.disconnect()
-        return {
-            "message": "backend.alerts.workspace.already_exist",
-            "status": 409,
-        }
-
     get_inviter = await db.user.find_unique(where={"id": get_workspace.userId})
 
     if not get_inviter:
@@ -615,11 +629,17 @@ async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
             "status": 404,
         }
 
-    await db.workspaceaccess.create(
+    user_invite_created = await db.userinvites.create(
+        data={
+            "user_id": invited_user.id,
+        }
+    )
+
+    workspace_access = await db.workspaceaccess.create(
         data={
             "workspaceId": give_workspace_access.workspaceId,
             "role": invited_user.roleId,
-            "userId": give_workspace_access.userId,
+            "userId": invited_user.id,
             "permissionsId": give_workspace_access.permissionsId,
         }
     )
@@ -633,7 +653,7 @@ async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
         policies_url="www.google.com",
         help_url="www.youtube.com",
         year=datetime.now().strftime("%Y"),
-        workspace_url=f"https://candhr.com/workspace/{get_workspace.id}",
+        workspace_url=f"https://candhr.com/workspace?access_id={workspace_access.id}&invite_id={user_invite_created.id}",
         workspace_name=get_workspace.workspaceName,
         inviter_name=get_inviter.nickname,
     )
@@ -649,7 +669,6 @@ async def give_workspace_access(give_workspace_access: GiveWorkspaceAccess):
 async def create_workspace(create_workspace_body: CreateWorkspace):
     if (
         not is_valid_name(create_workspace_body.workspaceName)
-        or not create_workspace_body.userName
         or not create_workspace_body.userId
     ):
         return {
@@ -667,6 +686,10 @@ async def create_workspace(create_workspace_body: CreateWorkspace):
         }
     )
 
+    get_user = await db.user.find_unique(
+        where={"id": create_workspace_body.userId}
+    )
+
     if already_exist is not None and already_exist.workspaceName is not None:
         await db.disconnect()
         return {
@@ -676,7 +699,7 @@ async def create_workspace(create_workspace_body: CreateWorkspace):
 
     now = datetime.now().isoformat()
 
-    await db.workspaces.create(
+    workspace_created = await db.workspaces.create(
         data={
             "workspaceName": create_workspace_body.workspaceName,
             "identify": json.dumps(
@@ -684,7 +707,7 @@ async def create_workspace(create_workspace_body: CreateWorkspace):
                     "workspaceCreateAt": now,
                     "workspaceModifiedAt": now,
                     "whoModified": "",
-                    "whoCreated": create_workspace_body.userName,
+                    "whoCreated": get_user.nickname,
                 }
             ),
             "kpi": json.dumps(
@@ -714,18 +737,11 @@ async def create_workspace(create_workspace_body: CreateWorkspace):
         }
     )
 
-    workspace_created = await db.workspaces.find_first(
-        where={
-            "userId": create_workspace_body.userId,
-            "workspaceName": create_workspace_body.workspaceName,
-        }
-    )
-
     await db.disconnect()
     return {
         "message": "backend.success.workspace.created",
         "status": 200,
-        "created_workspace": {
+        "data": {
             "id": workspace_created.id,
             "identify": workspace_created.identify,
             "kpi": workspace_created.kpi,
@@ -762,7 +778,7 @@ async def get_workspace(get_workspace_body: GetWorkspace):
         return {
             "message": "backend.success.workspace.found",
             "status": 200,
-            "workspace": {
+            "data": {
                 "id": workspace.id,
                 "identify": workspace.identify,
                 "kpi": workspace.kpi,
@@ -786,9 +802,51 @@ async def get_workspace(get_workspace_body: GetWorkspace):
         return {
             "message": "backend.success.workspace.found",
             "status": 200,
-            "workspacesList": workspaces,
+            "data": workspaces,
         }
 
     else:
         await db.disconnect()
         return {"message": "backend.errors.body.prop_missing", "status": 400}
+
+# The user will have two options accept or decline invite if users delcite delete item in invite table if accepte delete
+# delete items in usersinvites table and in workspaceaccess hasAccept to true
+
+
+@userRouter.post("/user/respond/invite/workspace", tags=["user"])
+async def respond_invite_workspace(delete_workspaces_by_access: DeleteInviteWorkspace):
+    if not delete_workspaces_by_access.workspaceAccessId:
+        return {"message": "backend.errors.body.prop_missing", "status": 500}
+
+    db = Prisma()
+    await db.connect()
+
+    workspace_access = await db.workspaceaccess.find_unique(
+        where={"id": delete_workspaces_by_access.workspaceAccessId}
+    )
+
+    user_invite = await db.userinvites.find_unique(
+        where={"id": delete_workspaces_by_access.userInvitesId},
+    )
+
+    # user invite tiene un campo created_at si tomamos created_at y la fecha actual mayor a 15 dias, elminamos la invitacion y queda
+    # todo invalidado
+
+    
+
+    if not workspace_access or not user_invite:
+        await db.disconnect()
+        return {"message": "backend.success.workspace.invite_access.not_found", "status": 404}
+
+    if delete_workspaces_by_access.hasAccepted:
+        await db.workspaceaccess.update(
+            where={"id": delete_workspaces_by_access.workspaceAccessId},
+            data={"hasAccepted": True}
+        )
+
+    await db.userinvites.delete(
+        where={"id": delete_workspaces_by_access.userInvitesId},
+    )
+
+    await db.disconnect()
+    return {"message": "backend.success.workspace.accepted_invite", "status": 200}
