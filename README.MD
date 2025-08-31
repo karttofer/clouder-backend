@@ -15,14 +15,26 @@ SENDER_API_KEY=<email_sender_api> - SMTP key value
 ```
 
 ### Run Commands
+You must follow these steps before starting the Uvicorn command. If you don't establish the Prisma connections first, the app will throw an error.
 ```shell
-pip install -r requirements. txt 
+# Before create the enviroment for python
+1. python3 -m venv venv // py -3.11 -m venv venv
+2. source venv/bin/activate // venv\Scripts\activate
 
-prisma generate
-prisma migrate dev
+# After create the enviroment for python
+1. pip install -r requirements.txt 
+2. prisma generate
 
-uvicorn main:app --reload
+# Local enviroments (Not supabase)
+3. prisma migrate dev
+# For supabase (Supabase don't allow the migrate since the service is already running, we don't have this control, so we just need to do the deployment)
+3. prisma migrate deploy
+
+4. uvicorn main:app --reload
 ```
+
+# Local PostgreSQL Connection
+To run the application locally with your PostgreSQL, you need to set up the proper connections. For example, the DATABASE_URL must be filled with the correct data. The host is usually localhost, and the port is 5432 by default. For database_name, you need to create a database within the <name> user. This means you must switch to the <name> user and create the database there.
 # FAQ
 
 These are some questions and answers I asked myself, and then I answered them through extensive research.

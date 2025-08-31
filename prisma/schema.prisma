@@ -10,36 +10,94 @@ datasource db {
 }
 
 model User {
-  id          String        @id @default(uuid())
-  nickname    String        @unique
-  password    String
-  email       String        @unique
-  Threads     UserThreads[]
-  UserPin     SecretPins[]
-  LoggedUsers LoggedUsers?
+  id                     String            @id @default(uuid())
+  nickname               String            @unique @default("")
+  email                  String            @unique @default("")
+  registration_completed Boolean           @default(false)
+  user_image             String            @default("")
+  Threads                UserThreads[]
+  UserPin                SecretPins[]
+  LoggedUsers            LoggedUsers?
+  workspaces             Workspaces[]
+  workspaceAccess        WorkspaceAccess[]
+  Invites                UserInvites[]
+  userRole               Roles             @relation(fields: [roleId], references: [id])
+  roleId                 String
 }
 
-// Table to know users currently on
+model Generics {
+  id            String @id @default(uuid())
+  defaultThemes Json?  @default("{}")
+  countryCodes  Json?  @default("[{}]")
+}
+
+model Workspaces {
+  id              String            @id @unique @default(uuid())
+  workspaceName   String            @default("")
+  identify        Json              @default("{}")
+  kpi             Json              @default("[{}]")
+  forms           Json              @default("[{}]")
+  messages        Json              @default("[{}]")
+  User            User              @relation(fields: [userId], references: [id])
+  userId          String            @default("")
+  prepareToDelete Boolean           @default(false)
+  members         WorkspaceAccess[]
+}
+
+model WorkspaceAccess {
+  id            String      @id @default(uuid())
+  user          User        @relation(fields: [userId], references: [id])
+  userId        String
+  workspace     Workspaces  @relation(fields: [workspaceId], references: [id])
+  workspaceId   String
+  roleId        String
+  createdAt     DateTime    @default(now())
+  permission    Permissions @relation(fields: [permissionsId], references: [id])
+  permissionsId String
+}
+
 model LoggedUsers {
+  id       String  @id @default(uuid())
   user     User    @relation(fields: [user_id], references: [id])
-  user_id  String  @unique
-  isLogged Boolean
+  user_id  String  @unique @default("")
+  isLogged Boolean @default(false)
 }
 
-// All the pins in relation to change password or something else related to auth
+model Permissions {
+  id               String            @id @default(uuid())
+  permissionsType  Int               @unique
+  permissionsLabel String            @unique
+  WorkspaceAccess  WorkspaceAccess[]
+}
+
+model Roles {
+  id       String @id @default(uuid())
+  roleName String @unique
+  roleType Int    @unique
+  User     User[]
+}
+
 model SecretPins {
-  user    User   @relation(fields: [user_id], references: [id])
-  user_id String @unique
-  pin     Int
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [user_id], references: [id])
+  user_id    String   @unique @default("")
+  pin        Int      @default(0)
+  created_at DateTime @default(now())
 }
 
-// Table to know users threads with the bot
+model UserInvites {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [user_id], references: [id])
+  user_id    String   @unique @default("")
+  created_at DateTime @default(now())
+}
+
 model UserThreads {
   thread_id   String   @unique
   message_id  String   @unique
   user        User     @relation(fields: [user_id], references: [id])
-  user_id     String
-  thread_name String
-  isArchived  Boolean
-  created_at  Int
+  user_id     String   @default("")
+  thread_name String   @default("")
+  isArchived  Boolean  @default(false)
+  created_at  DateTime @default(now())
 }
